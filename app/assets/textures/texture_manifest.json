@@ -1,0 +1,10 @@
+{
+  "textures": [
+    {
+      "id": "canvas_grid",
+      "description": "Subtle dark studio 32px drawing grid",
+      "procedural": true
+    }
+  ]
+}
+

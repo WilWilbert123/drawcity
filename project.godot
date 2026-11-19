@@ -1,0 +1,54 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="LIVING CANVAS"
+config/description="Draw It. Animate It. Bring It to Life. Offline 2D Drawing, Rigging, Animation, Physics & World Simulator."
+config/version="1.0.0"
+run/main_scene="res://app/scenes/main/main.tscn"
+config/features=PackedStringArray("4.7", "Mobile")
+boot_splash/bg_color=Color(0.0705882, 0.0823529, 0.117647, 1)
+config/icon="res://icon.svg"
+
+[autoload]
+
+EventBus="*res://app/scripts/autoload/event_bus.gd"
+DatabaseManager="*res://app/scripts/autoload/database_manager.gd"
+AppState="*res://app/scripts/autoload/app_state.gd"
+FileManager="*res://app/scripts/autoload/file_manager.gd"
+ProjectManager="*res://app/scripts/autoload/project_manager.gd"
+SettingsManager="*res://app/scripts/autoload/settings_manager.gd"
+UndoManager="*res://app/scripts/autoload/undo_manager.gd"
+
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=4
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+pointing/android/enable_long_press_as_right_click=true
+
+[physics]
+
+common/physics_ticks_per_second=60
+2d/default_gravity=980.0
+
+[rendering]
+
+renderer/rendering_method="mobile"
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(0.0941176, 0.105882, 0.141176, 1)
+

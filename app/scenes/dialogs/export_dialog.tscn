@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[node name="ExportDialog" type="AcceptDialog"]
+title = "Export Complete"
+dialog_text = "Original editable drawing & project bundle exported."
+

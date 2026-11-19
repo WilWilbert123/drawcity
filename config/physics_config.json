@@ -1,0 +1,15 @@
+{
+  "gravity_px_s2": 980.0,
+  "air_density": 1.225,
+  "water_density": 1000.0,
+  "water_drag": 3.5,
+  "ground_friction": 0.8,
+  "default_restitution": 0.15,
+  "fish_max_oxygen_seconds": 12.0,
+  "vehicle_max_speed": 650.0,
+  "vehicle_acceleration": 420.0,
+  "vehicle_brake_deceleration": 680.0,
+  "airplane_stall_speed": 180.0,
+  "airplane_lift_coefficient": 1.35
+}
+

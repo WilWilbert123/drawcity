@@ -1,0 +1,11 @@
+{
+  "database_file": "user://data/living_canvas.db",
+  "schema_version": 8,
+  "journal_mode": "WAL",
+  "synchronous": "NORMAL",
+  "foreign_keys": true,
+  "busy_timeout_ms": 5000,
+  "auto_backup_on_launch": true,
+  "max_backups": 5
+}
+

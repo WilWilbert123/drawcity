@@ -1,0 +1,16 @@
+{
+  "default_canvas_width": 1920,
+  "default_canvas_height": 1080,
+  "background_color": "#181B24",
+  "default_brush_type": "pencil",
+  "default_brush_size": 4.0,
+  "min_brush_size": 1.0,
+  "max_brush_size": 64.0,
+  "default_color": "#F9FAFB",
+  "smoothing_factor": 0.45,
+  "simplification_epsilon": 0.75,
+  "pressure_sensitivity": true,
+  "max_layers": 16,
+  "preserve_raw_points": true
+}
+

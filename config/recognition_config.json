@@ -1,0 +1,27 @@
+{
+  "offline_only": true,
+  "min_confidence_threshold": 0.45,
+  "allow_manual_override": true,
+  "categories": [
+    "human",
+    "stickman",
+    "animal",
+    "bird",
+    "fish",
+    "tiger",
+    "car",
+    "truck",
+    "tank",
+    "airplane",
+    "dragon",
+    "weapon",
+    "water",
+    "sky",
+    "cloud",
+    "ground",
+    "tree",
+    "building",
+    "other"
+  ]
+}
+

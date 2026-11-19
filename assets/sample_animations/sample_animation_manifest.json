@@ -1,0 +1,11 @@
+{
+  "animations": [
+    {"name": "idle", "duration_sec": 1.6, "loop": true},
+    {"name": "walk", "duration_sec": 0.8, "loop": true},
+    {"name": "run", "duration_sec": 0.5, "loop": true},
+    {"name": "jump", "duration_sec": 0.7, "loop": false},
+    {"name": "fly", "duration_sec": 0.6, "loop": true},
+    {"name": "swim", "duration_sec": 0.7, "loop": true}
+  ]
+}
+

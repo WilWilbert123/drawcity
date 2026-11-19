@@ -1,0 +1,7 @@
+{
+  "sounds": [
+    {"id": "brush_stroke", "type": "procedural_noise", "offline": true},
+    {"id": "engine_hum", "type": "procedural_tone", "offline": true}
+  ]
+}
+

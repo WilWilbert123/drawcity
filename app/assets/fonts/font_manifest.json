@@ -1,0 +1,11 @@
+{
+  "fonts": [
+    {
+      "id": "studio_sans",
+      "family": "System Sans",
+      "weights": ["regular", "medium", "bold"],
+      "default_size_px": 16
+    }
+  ]
+}
+

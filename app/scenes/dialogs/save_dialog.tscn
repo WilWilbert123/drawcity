@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[node name="SaveDialog" type="AcceptDialog"]
+title = "Save Project"
+dialog_text = "Project and editable strokes saved to SQLite database."
+

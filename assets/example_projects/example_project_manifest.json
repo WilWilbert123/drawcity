@@ -1,0 +1,11 @@
+{
+  "projects": [
+    {
+      "id": "stickman_and_car_demo",
+      "title": "Stickman & Car World",
+      "preserve_original_artwork": true,
+      "objects": ["stickman", "car"]
+    }
+  ]
+}
+

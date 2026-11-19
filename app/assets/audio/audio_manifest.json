@@ -1,0 +1,10 @@
+{
+  "audio_cues": [
+    {
+      "id": "ui_click",
+      "description": "Subtle tactile studio tap cue",
+      "offline": true
+    }
+  ]
+}
+

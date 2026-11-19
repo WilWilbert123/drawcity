@@ -1,0 +1,15 @@
+{
+  "app_name": "LIVING CANVAS",
+  "project_codename": "Draw City",
+  "version": "1.0.0",
+  "tagline": "Draw It. Animate It. Bring It to Life.",
+  "offline_first": true,
+  "preserve_original_artwork": true,
+  "default_theme": "dark_theme",
+  "target_fps": 60,
+  "autosave_interval_seconds": 30,
+  "max_undo_steps": 100,
+  "storage_root": "user://",
+  "database_path": "user://data/living_canvas.db"
+}
+

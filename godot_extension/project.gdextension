@@ -1,0 +1,19 @@
+[configuration]
+
+entry_symbol = "living_canvas_library_init"
+compatibility_minimum = "4.3"
+reloadable = true
+
+[libraries]
+
+macos.debug.arm64 = "res://godot_extension/bin/libliving_canvas_gdext.macos.debug.arm64.dylib"
+macos.release.arm64 = "res://godot_extension/bin/libliving_canvas_gdext.macos.release.arm64.dylib"
+macos.debug.x86_64 = "res://godot_extension/bin/libliving_canvas_gdext.macos.debug.x86_64.dylib"
+macos.release.x86_64 = "res://godot_extension/bin/libliving_canvas_gdext.macos.release.x86_64.dylib"
+android.debug.arm64 = "res://godot_extension/bin/libliving_canvas_gdext.android.debug.arm64.so"
+android.release.arm64 = "res://godot_extension/bin/libliving_canvas_gdext.android.release.arm64.so"
+linux.debug.x86_64 = "res://godot_extension/bin/libliving_canvas_gdext.linux.debug.x86_64.so"
+linux.release.x86_64 = "res://godot_extension/bin/libliving_canvas_gdext.linux.release.x86_64.so"
+windows.debug.x86_64 = "res://godot_extension/bin/living_canvas_gdext.windows.debug.x86_64.dll"
+windows.release.x86_64 = "res://godot_extension/bin/living_canvas_gdext.windows.release.x86_64.dll"
+

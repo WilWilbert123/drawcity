@@ -1,0 +1,10 @@
+{
+  "brushes": [
+    {"id": "pencil", "type": 0, "default_size": 4.0, "pressure": true},
+    {"id": "pen", "type": 1, "default_size": 5.0, "pressure": true},
+    {"id": "marker", "type": 2, "default_size": 14.0, "pressure": false},
+    {"id": "soft_brush", "type": 3, "default_size": 18.0, "pressure": true},
+    {"id": "eraser", "type": 4, "default_size": 20.0, "pressure": false}
+  ]
+}
+
