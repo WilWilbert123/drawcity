@@ -4,6 +4,7 @@
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/variant/string.hpp>
 
+#include "drawing/drawing_bridge.hpp"
 #include "living_canvas/animation/animation_engine.hpp"
 #include "living_canvas/rigging/rig_manager.hpp"
 
@@ -18,6 +19,7 @@ public:
 
     int64_t create_rig(int64_t object_id, const godot::String& rig_type);
     int64_t create_auto_stickman_rig(int64_t object_id, double min_x, double min_y, double max_x, double max_y);
+    int64_t create_auto_stickman_rig_from_drawing(int64_t object_id, DrawingBridge* drawing_bridge);
     int64_t add_joint(int64_t rig_id, const godot::String& name, double x, double y);
     int64_t add_bone(int64_t rig_id, const godot::String& name, int64_t parent_bone_id, int64_t start_joint_id, int64_t end_joint_id);
     bool move_joint(int64_t rig_id, int64_t joint_id, double x, double y);

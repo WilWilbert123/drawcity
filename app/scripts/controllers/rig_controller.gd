@@ -4,9 +4,13 @@ extends RefCounted
 func auto_rig_stickman(object_id: int, bounds: Rect2) -> int:
 	if AppState.animation_bridge == null:
 		return 0
-	var rig_id := AppState.animation_bridge.create_auto_stickman_rig(
-		object_id, bounds.position.x, bounds.position.y, bounds.end.x, bounds.end.y
-	)
+	var rig_id: int = 0
+	if AppState.drawing_bridge != null and AppState.drawing_bridge.get_stroke_count() > 0:
+		rig_id = AppState.animation_bridge.create_auto_stickman_rig_from_drawing(object_id, AppState.drawing_bridge)
+	else:
+		rig_id = AppState.animation_bridge.create_auto_stickman_rig(
+			object_id, bounds.position.x, bounds.position.y, bounds.end.x, bounds.end.y
+		)
 	AppState.active_stickman_rig_id = rig_id
 	EventBus.rig_updated.emit(rig_id)
 	return rig_id

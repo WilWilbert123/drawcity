@@ -1,6 +1,7 @@
 #include "living_canvas/animation/animation_engine.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 namespace living_canvas::animation {
 
@@ -75,7 +76,28 @@ void AnimationEngine::step(float delta_sec, living_canvas::rigging::RigInstance*
     if (active_rig) {
         for (auto& bone : active_rig->bones) {
             const Keyframe kf = clip->evaluate_bone(bone.name(), current_time_sec_);
-            bone.set_local_rotation_deg(kf.rotation_deg);
+            if (!clip->tracks().empty()) {
+                for (const auto& tr : clip->tracks()) {
+                    if (tr.target_bone_name == bone.name()) {
+                        bone.set_local_rotation_deg(kf.rotation_deg);
+                        // Deform end joint position around start joint so original rigged skeleton visibly moves
+                        const float rad = kf.rotation_deg * 3.1415926535f / 180.0f;
+                        for (auto& sj : active_rig->joints) {
+                            if (sj.id() == bone.start_joint_id()) {
+                                for (auto& ej : active_rig->joints) {
+                                    if (ej.id() == bone.end_joint_id()) {
+                                        ej.set_position(sj.x() + std::cos(rad) * bone.length() + kf.offset_x,
+                                                        sj.y() + std::sin(rad) * bone.length() + kf.offset_y);
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
         }
     }
 }

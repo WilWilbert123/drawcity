@@ -1,5 +1,6 @@
 #include "drawing/drawing_bridge.hpp"
 
+#include <cmath>
 #include <godot_cpp/core/class_db.hpp>
 
 namespace living_canvas::gdext {
@@ -157,6 +158,129 @@ godot::String DrawingBridge::redo() {
     return godot::String(snap.state_json.c_str());
 }
 
+void DrawingBridge::load_sample_stickman() {
+    engine_.brush_engine().select_brush(living_canvas::drawing::BrushType::Pen);
+    engine_.brush_engine().set_color_hex("#F59E0B");
+    engine_.brush_engine().set_brush_size(5.0f);
+
+    // Head circle around (470, 200), radius 28
+    int64_t s_head = engine_.begin_stroke(1, 470.0f + 28.0f, 200.0f, 1.0f);
+    for (int i = 1; i <= 16; ++i) {
+        float ang = static_cast<float>(i) * (6.2831853f / 16.0f);
+        engine_.append_stroke_point(s_head, 470.0f + std::cos(ang) * 28.0f, 200.0f + std::sin(ang) * 28.0f, 1.0f);
+    }
+    engine_.end_stroke(s_head);
+
+    // Torso
+    int64_t s_body = engine_.begin_stroke(1, 470.0f, 228.0f, 1.0f);
+    engine_.append_stroke_point(s_body, 470.0f, 340.0f, 1.0f);
+    engine_.end_stroke(s_body);
+
+    // Left Arm
+    int64_t s_larm = engine_.begin_stroke(1, 470.0f, 250.0f, 1.0f);
+    engine_.append_stroke_point(s_larm, 425.0f, 285.0f, 1.0f);
+    engine_.append_stroke_point(s_larm, 395.0f, 315.0f, 1.0f);
+    engine_.end_stroke(s_larm);
+
+    // Right Arm
+    int64_t s_rarm = engine_.begin_stroke(1, 470.0f, 250.0f, 1.0f);
+    engine_.append_stroke_point(s_rarm, 515.0f, 285.0f, 1.0f);
+    engine_.append_stroke_point(s_rarm, 545.0f, 315.0f, 1.0f);
+    engine_.end_stroke(s_rarm);
+
+    // Left Leg
+    int64_t s_lleg = engine_.begin_stroke(1, 470.0f, 340.0f, 1.0f);
+    engine_.append_stroke_point(s_lleg, 445.0f, 410.0f, 1.0f);
+    engine_.append_stroke_point(s_lleg, 430.0f, 480.0f, 1.0f);
+    engine_.end_stroke(s_lleg);
+
+    // Right Leg
+    int64_t s_rleg = engine_.begin_stroke(1, 470.0f, 340.0f, 1.0f);
+    engine_.append_stroke_point(s_rleg, 495.0f, 410.0f, 1.0f);
+    engine_.append_stroke_point(s_rleg, 510.0f, 480.0f, 1.0f);
+    engine_.end_stroke(s_rleg);
+
+    history_.push_snapshot("sample_stickman", engine_.serialize_canvas_json());
+}
+
+void DrawingBridge::load_sample_car() {
+    engine_.brush_engine().select_brush(living_canvas::drawing::BrushType::Pen);
+    engine_.brush_engine().set_color_hex("#3B82F6");
+    engine_.brush_engine().set_brush_size(5.5f);
+
+    // Car chassis
+    int64_t s_body = engine_.begin_stroke(1, 680.0f, 440.0f, 1.0f);
+    engine_.append_stroke_point(s_body, 710.0f, 390.0f, 1.0f);
+    engine_.append_stroke_point(s_body, 830.0f, 390.0f, 1.0f);
+    engine_.append_stroke_point(s_body, 880.0f, 440.0f, 1.0f);
+    engine_.append_stroke_point(s_body, 920.0f, 445.0f, 1.0f);
+    engine_.append_stroke_point(s_body, 920.0f, 475.0f, 1.0f);
+    engine_.append_stroke_point(s_body, 660.0f, 475.0f, 1.0f);
+    engine_.append_stroke_point(s_body, 660.0f, 440.0f, 1.0f);
+    engine_.append_stroke_point(s_body, 680.0f, 440.0f, 1.0f);
+    engine_.end_stroke(s_body);
+
+    // Left & Right wheels
+    engine_.brush_engine().set_color_hex("#10B981");
+    for (float wx : {715.0f, 865.0f}) {
+        int64_t sw = engine_.begin_stroke(1, wx + 26.0f, 480.0f, 1.0f);
+        for (int i = 1; i <= 14; ++i) {
+            float ang = static_cast<float>(i) * (6.2831853f / 14.0f);
+            engine_.append_stroke_point(sw, wx + std::cos(ang) * 26.0f, 480.0f + std::sin(ang) * 26.0f, 1.0f);
+        }
+        engine_.end_stroke(sw);
+    }
+
+    history_.push_snapshot("sample_car", engine_.serialize_canvas_json());
+}
+
+void DrawingBridge::load_sample_fish_and_ocean() {
+    engine_.brush_engine().select_brush(living_canvas::drawing::BrushType::Marker);
+    engine_.brush_engine().set_color_hex("#06B6D4");
+    engine_.brush_engine().set_brush_size(8.0f);
+
+    // Ocean wave
+    int64_t s_wave = engine_.begin_stroke(1, 100.0f, 540.0f, 1.0f);
+    for (int i = 1; i <= 24; ++i) {
+        float x = 100.0f + static_cast<float>(i) * 45.0f;
+        float y = 540.0f + std::sin(static_cast<float>(i) * 0.8f) * 14.0f;
+        engine_.append_stroke_point(s_wave, x, y, 1.0f);
+    }
+    engine_.end_stroke(s_wave);
+
+    // Drawn Fish body + tail
+    engine_.brush_engine().select_brush(living_canvas::drawing::BrushType::Pen);
+    engine_.brush_engine().set_color_hex("#EC4899");
+    engine_.brush_engine().set_brush_size(4.5f);
+    int64_t s_fish = engine_.begin_stroke(1, 320.0f, 590.0f, 1.0f);
+    engine_.append_stroke_point(s_fish, 360.0f, 570.0f, 1.0f);
+    engine_.append_stroke_point(s_fish, 410.0f, 590.0f, 1.0f);
+    engine_.append_stroke_point(s_fish, 440.0f, 570.0f, 1.0f);
+    engine_.append_stroke_point(s_fish, 440.0f, 610.0f, 1.0f);
+    engine_.append_stroke_point(s_fish, 410.0f, 590.0f, 1.0f);
+    engine_.append_stroke_point(s_fish, 360.0f, 610.0f, 1.0f);
+    engine_.append_stroke_point(s_fish, 320.0f, 590.0f, 1.0f);
+    engine_.end_stroke(s_fish);
+
+    history_.push_snapshot("sample_fish_ocean", engine_.serialize_canvas_json());
+}
+
+void DrawingBridge::load_sample_bird_and_sky() {
+    engine_.brush_engine().select_brush(living_canvas::drawing::BrushType::Pen);
+    engine_.brush_engine().set_color_hex("#A855F7");
+    engine_.brush_engine().set_brush_size(4.5f);
+
+    // Drawn Bird wings + body
+    int64_t s_bird = engine_.begin_stroke(1, 240.0f, 130.0f, 1.0f);
+    engine_.append_stroke_point(s_bird, 275.0f, 105.0f, 1.0f);
+    engine_.append_stroke_point(s_bird, 300.0f, 130.0f, 1.0f);
+    engine_.append_stroke_point(s_bird, 325.0f, 105.0f, 1.0f);
+    engine_.append_stroke_point(s_bird, 360.0f, 130.0f, 1.0f);
+    engine_.end_stroke(s_bird);
+
+    history_.push_snapshot("sample_bird", engine_.serialize_canvas_json());
+}
+
 godot::String DrawingBridge::serialize_canvas_json() const {
     return godot::String(engine_.serialize_canvas_json().c_str());
 }
@@ -194,6 +318,10 @@ void DrawingBridge::_bind_methods() {
     ClassDB::bind_method(D_METHOD("can_redo"), &DrawingBridge::can_redo);
     ClassDB::bind_method(D_METHOD("undo"), &DrawingBridge::undo);
     ClassDB::bind_method(D_METHOD("redo"), &DrawingBridge::redo);
+    ClassDB::bind_method(D_METHOD("load_sample_stickman"), &DrawingBridge::load_sample_stickman);
+    ClassDB::bind_method(D_METHOD("load_sample_car"), &DrawingBridge::load_sample_car);
+    ClassDB::bind_method(D_METHOD("load_sample_fish_and_ocean"), &DrawingBridge::load_sample_fish_and_ocean);
+    ClassDB::bind_method(D_METHOD("load_sample_bird_and_sky"), &DrawingBridge::load_sample_bird_and_sky);
     ClassDB::bind_method(D_METHOD("serialize_canvas_json"), &DrawingBridge::serialize_canvas_json);
 }
 

@@ -51,6 +51,11 @@ public:
     godot::String undo();
     godot::String redo();
 
+    void load_sample_stickman();
+    void load_sample_car();
+    void load_sample_fish_and_ocean();
+    void load_sample_bird_and_sky();
+
     godot::String serialize_canvas_json() const;
 
     living_canvas::drawing::DrawingEngine& native_engine() noexcept { return engine_; }

@@ -18,6 +18,36 @@ int64_t AnimationBridge::create_auto_stickman_rig(int64_t object_id, double min_
     return rig_manager_.build_auto_stickman_rig(object_id, box, {});
 }
 
+int64_t AnimationBridge::create_auto_stickman_rig_from_drawing(int64_t object_id, DrawingBridge* drawing_bridge) {
+    if (drawing_bridge == nullptr) {
+        return create_auto_stickman_rig(object_id, 400.0, 170.0, 540.0, 480.0);
+    }
+    const auto& strokes = drawing_bridge->native_engine().strokes();
+    living_canvas::drawing::BoundingBox overall;
+    for (const auto& s : strokes) {
+        const auto b = s.compute_bounds();
+        if (!b.valid) {
+            continue;
+        }
+        if (!overall.valid) {
+            overall = b;
+        } else {
+            overall.min_x = std::min(overall.min_x, b.min_x);
+            overall.max_x = std::max(overall.max_x, b.max_x);
+            overall.min_y = std::min(overall.min_y, b.min_y);
+            overall.max_y = std::max(overall.max_y, b.max_y);
+        }
+    }
+    if (!overall.valid) {
+        overall.min_x = 400.0f;
+        overall.min_y = 170.0f;
+        overall.max_x = 540.0f;
+        overall.max_y = 480.0f;
+        overall.valid = true;
+    }
+    return rig_manager_.build_auto_stickman_rig(object_id, overall, strokes);
+}
+
 int64_t AnimationBridge::add_joint(int64_t rig_id, const godot::String& name, double x, double y) {
     return rig_manager_.add_joint(rig_id, name.utf8().get_data(), static_cast<float>(x), static_cast<float>(y));
 }
@@ -80,6 +110,7 @@ void AnimationBridge::_bind_methods() {
     using namespace godot;
     ClassDB::bind_method(D_METHOD("create_rig", "object_id", "rig_type"), &AnimationBridge::create_rig);
     ClassDB::bind_method(D_METHOD("create_auto_stickman_rig", "object_id", "min_x", "min_y", "max_x", "max_y"), &AnimationBridge::create_auto_stickman_rig);
+    ClassDB::bind_method(D_METHOD("create_auto_stickman_rig_from_drawing", "object_id", "drawing_bridge"), &AnimationBridge::create_auto_stickman_rig_from_drawing);
     ClassDB::bind_method(D_METHOD("add_joint", "rig_id", "name", "x", "y"), &AnimationBridge::add_joint);
     ClassDB::bind_method(D_METHOD("add_bone", "rig_id", "name", "parent_bone_id", "start_joint_id", "end_joint_id"), &AnimationBridge::add_bone);
     ClassDB::bind_method(D_METHOD("move_joint", "rig_id", "joint_id", "x", "y"), &AnimationBridge::move_joint);
