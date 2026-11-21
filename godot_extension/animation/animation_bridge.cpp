@@ -22,9 +22,26 @@ int64_t AnimationBridge::create_auto_stickman_rig_from_drawing(int64_t object_id
     if (drawing_bridge == nullptr) {
         return create_auto_stickman_rig(object_id, 400.0, 170.0, 540.0, 480.0);
     }
-    const auto& strokes = drawing_bridge->native_engine().strokes();
+    const auto& all_strokes = drawing_bridge->native_engine().strokes();
+    std::vector<living_canvas::drawing::Stroke> target_strokes;
+    for (const auto& s : all_strokes) {
+        if (s.object_id() == object_id || s.part_id() == 1) {
+            target_strokes.push_back(s);
+        }
+    }
+    if (target_strokes.empty()) {
+        for (const auto& s : all_strokes) {
+            if (s.object_id() == 0) {
+                target_strokes.push_back(s);
+            }
+        }
+    }
+    if (target_strokes.empty()) {
+        target_strokes = all_strokes;
+    }
+
     living_canvas::drawing::BoundingBox overall;
-    for (const auto& s : strokes) {
+    for (const auto& s : target_strokes) {
         const auto b = s.compute_bounds();
         if (!b.valid) {
             continue;
@@ -45,7 +62,7 @@ int64_t AnimationBridge::create_auto_stickman_rig_from_drawing(int64_t object_id
         overall.max_y = 480.0f;
         overall.valid = true;
     }
-    return rig_manager_.build_auto_stickman_rig(object_id, overall, strokes);
+    return rig_manager_.build_auto_stickman_rig(object_id, overall, target_strokes);
 }
 
 int64_t AnimationBridge::add_joint(int64_t rig_id, const godot::String& name, double x, double y) {

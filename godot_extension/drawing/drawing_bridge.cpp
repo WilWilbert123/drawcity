@@ -281,6 +281,109 @@ void DrawingBridge::load_sample_bird_and_sky() {
     history_.push_snapshot("sample_bird", engine_.serialize_canvas_json());
 }
 
+void DrawingBridge::load_sample_city() {
+    // 1. Two City Buildings + Windows (part_id = 10 -> static building)
+    engine_.brush_engine().select_brush(living_canvas::drawing::BrushType::Pen);
+    engine_.brush_engine().set_color_hex("#64748B");
+    engine_.brush_engine().set_brush_size(5.0f);
+
+    int64_t b1 = engine_.begin_stroke(1, 110.0f, 620.0f, 1.0f);
+    engine_.append_stroke_point(b1, 110.0f, 240.0f, 1.0f);
+    engine_.append_stroke_point(b1, 290.0f, 240.0f, 1.0f);
+    engine_.append_stroke_point(b1, 290.0f, 620.0f, 1.0f);
+    engine_.end_stroke(b1);
+
+    int64_t b2 = engine_.begin_stroke(1, 1020.0f, 620.0f, 1.0f);
+    engine_.append_stroke_point(b2, 1020.0f, 180.0f, 1.0f);
+    engine_.append_stroke_point(b2, 1240.0f, 180.0f, 1.0f);
+    engine_.append_stroke_point(b2, 1240.0f, 620.0f, 1.0f);
+    engine_.end_stroke(b2);
+
+    //Lit Windows
+    engine_.brush_engine().set_color_hex("#FACC15");
+    engine_.brush_engine().set_brush_size(4.0f);
+    for (float wy : {290.0f, 360.0f, 430.0f, 500.0f}) {
+        for (float wx : {150.0f, 220.0f, 1070.0f, 1160.0f}) {
+            int64_t sw = engine_.begin_stroke(1, wx, wy, 1.0f);
+            engine_.append_stroke_point(sw, wx + 28.0f, wy, 1.0f);
+            engine_.append_stroke_point(sw, wx + 28.0f, wy + 28.0f, 1.0f);
+            engine_.append_stroke_point(sw, wx, wy + 28.0f, 1.0f);
+            engine_.append_stroke_point(sw, wx, wy, 1.0f);
+            engine_.end_stroke(sw);
+        }
+    }
+    commit_unassigned_strokes_to_object(101, 10);
+
+    // 2. City Tree (part_id = 11 -> static tree)
+    engine_.brush_engine().set_color_hex("#A16207");
+    engine_.brush_engine().set_brush_size(6.0f);
+    int64_t tr_trunk = engine_.begin_stroke(1, 350.0f, 620.0f, 1.0f);
+    engine_.append_stroke_point(tr_trunk, 350.0f, 510.0f, 1.0f);
+    engine_.end_stroke(tr_trunk);
+
+    engine_.brush_engine().set_color_hex("#10B981");
+    int64_t tr_crown = engine_.begin_stroke(1, 350.0f + 42.0f, 480.0f, 1.0f);
+    for (int i = 1; i <= 14; ++i) {
+        float ang = static_cast<float>(i) * (6.2831853f / 14.0f);
+        engine_.append_stroke_point(tr_crown, 350.0f + std::cos(ang) * 42.0f, 480.0f + std::sin(ang) * 38.0f, 1.0f);
+    }
+    engine_.end_stroke(tr_crown);
+    commit_unassigned_strokes_to_object(102, 11);
+
+    // 3. Drifting Sky Clouds (part_id = 3 -> drifting cloud)
+    engine_.brush_engine().set_color_hex("#E2E8F0");
+    engine_.brush_engine().set_brush_size(5.0f);
+    for (float cx : {220.0f, 740.0f}) {
+        int64_t sc = engine_.begin_stroke(1, cx, 110.0f, 1.0f);
+        engine_.append_stroke_point(sc, cx + 35.0f, 90.0f, 1.0f);
+        engine_.append_stroke_point(sc, cx + 75.0f, 95.0f, 1.0f);
+        engine_.append_stroke_point(sc, cx + 110.0f, 110.0f, 1.0f);
+        engine_.append_stroke_point(sc, cx, 110.0f, 1.0f);
+        engine_.end_stroke(sc);
+    }
+    commit_unassigned_strokes_to_object(103, 3);
+
+    // 4. Flying Bird (part_id = 4 -> flying bird)
+    load_sample_bird_and_sky();
+    commit_unassigned_strokes_to_object(104, 4);
+
+    // 5. Drawn Car (object_id = 2, part_id = 2 -> drivable car)
+    load_sample_car();
+    commit_unassigned_strokes_to_object(2, 2);
+
+    // 6. Drawn Stickman Citizen (object_id = 1, part_id = 1 -> rigged stickman citizen)
+    load_sample_stickman();
+    commit_unassigned_strokes_to_object(1, 1);
+
+    history_.push_snapshot("sample_city", engine_.serialize_canvas_json());
+}
+
+int32_t DrawingBridge::commit_unassigned_strokes_to_object(int64_t object_id, int64_t part_id) {
+    int32_t count = 0;
+    std::vector<int64_t> ids;
+    for (const auto& s : engine_.strokes()) {
+        if (s.object_id() == 0) {
+            ids.push_back(s.id());
+            ++count;
+        }
+    }
+    if (!ids.empty()) {
+        engine_.assign_strokes_to_object(ids, object_id, part_id);
+        history_.push_snapshot("commit_city_object", engine_.serialize_canvas_json());
+    }
+    return count;
+}
+
+int32_t DrawingBridge::get_unassigned_stroke_count() const {
+    int32_t count = 0;
+    for (const auto& s : engine_.strokes()) {
+        if (s.object_id() == 0) {
+            ++count;
+        }
+    }
+    return count;
+}
+
 godot::String DrawingBridge::serialize_canvas_json() const {
     return godot::String(engine_.serialize_canvas_json().c_str());
 }
@@ -322,6 +425,9 @@ void DrawingBridge::_bind_methods() {
     ClassDB::bind_method(D_METHOD("load_sample_car"), &DrawingBridge::load_sample_car);
     ClassDB::bind_method(D_METHOD("load_sample_fish_and_ocean"), &DrawingBridge::load_sample_fish_and_ocean);
     ClassDB::bind_method(D_METHOD("load_sample_bird_and_sky"), &DrawingBridge::load_sample_bird_and_sky);
+    ClassDB::bind_method(D_METHOD("load_sample_city"), &DrawingBridge::load_sample_city);
+    ClassDB::bind_method(D_METHOD("commit_unassigned_strokes_to_object", "object_id", "part_id"), &DrawingBridge::commit_unassigned_strokes_to_object);
+    ClassDB::bind_method(D_METHOD("get_unassigned_stroke_count"), &DrawingBridge::get_unassigned_stroke_count);
     ClassDB::bind_method(D_METHOD("serialize_canvas_json"), &DrawingBridge::serialize_canvas_json);
 }
 

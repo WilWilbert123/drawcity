@@ -55,6 +55,10 @@ public:
     void load_sample_car();
     void load_sample_fish_and_ocean();
     void load_sample_bird_and_sky();
+    void load_sample_city();
+
+    int32_t commit_unassigned_strokes_to_object(int64_t object_id, int64_t part_id);
+    int32_t get_unassigned_stroke_count() const;
 
     godot::String serialize_canvas_json() const;
 

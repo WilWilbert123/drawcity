@@ -65,6 +65,20 @@ void PhysicsBridge::step_world(double dt) {
     simulator_.step(static_cast<float>(dt), world_, physics_, interactions_);
 }
 
+void PhysicsBridge::reset_bodies() {
+    for (int64_t id : {1, 2, 10, 11}) {
+        auto& b = physics_.ensure_body(id);
+        b.x = 0.0f;
+        b.y = 0.0f;
+        b.vx = 0.0f;
+        b.vy = 0.0f;
+        b.rotation_rad = 0.0f;
+        b.wheel_rotation_rad = 0.0f;
+    }
+    interactions_.clear_relationships();
+    simulator_.reset();
+}
+
 godot::Dictionary PhysicsBridge::get_body_state(int64_t object_id) {
     const auto& body = physics_.ensure_body(object_id);
     godot::Dictionary d;
@@ -94,6 +108,7 @@ void PhysicsBridge::_bind_methods() {
     ClassDB::bind_method(D_METHOD("exit_vehicle", "character_id", "vehicle_id"), &PhysicsBridge::exit_vehicle);
     ClassDB::bind_method(D_METHOD("attach_held_object", "character_id", "object_id", "offset_x", "offset_y"), &PhysicsBridge::attach_held_object);
     ClassDB::bind_method(D_METHOD("step_world", "dt"), &PhysicsBridge::step_world);
+    ClassDB::bind_method(D_METHOD("reset_bodies"), &PhysicsBridge::reset_bodies);
     ClassDB::bind_method(D_METHOD("get_body_state", "object_id"), &PhysicsBridge::get_body_state);
 }
 

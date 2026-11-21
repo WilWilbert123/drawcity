@@ -12,4 +12,7 @@ func _ready() -> void:
 		var profiles := storage_bridge.list_user_profiles()
 		if profiles.is_empty():
 			storage_bridge.create_user_profile("Local Creator", "artist_01")
+		var projects := storage_bridge.list_projects(1)
+		if projects.is_empty():
+			storage_bridge.create_project(1, "My Stickman & Car World", "Default local project", 1920, 1080)
 

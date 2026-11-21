@@ -145,8 +145,8 @@ bool ProjectRepository::save_drawing_strokes(int64_t project_id, const living_ca
     }
 
     const char* ins_sql =
-        "INSERT INTO drawing_strokes(layer_id, brush_type, color_hex, base_width, stroke_order, visible, locked, points_blob) "
-        "VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8);";
+        "INSERT INTO drawing_strokes(layer_id, object_id, part_id, brush_type, color_hex, base_width, stroke_order, visible, locked, points_blob) "
+        "VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10);";
     sqlite3_stmt* ins_stmt = nullptr;
     if (sqlite3_prepare_v2(handle, ins_sql, -1, &ins_stmt, nullptr) != SQLITE_OK) {
         db_.execute_sql("ROLLBACK;");
@@ -157,13 +157,15 @@ bool ProjectRepository::save_drawing_strokes(int64_t project_id, const living_ca
         const auto blob = stroke.serialize_points_blob();
         sqlite3_reset(ins_stmt);
         sqlite3_bind_int64(ins_stmt, 1, db_layer_id);
-        sqlite3_bind_int(ins_stmt, 2, static_cast<int32_t>(stroke.brush_type()));
-        sqlite3_bind_text(ins_stmt, 3, stroke.color_hex().c_str(), -1, SQLITE_TRANSIENT);
-        sqlite3_bind_double(ins_stmt, 4, stroke.base_width());
-        sqlite3_bind_int(ins_stmt, 5, stroke.stroke_order());
-        sqlite3_bind_int(ins_stmt, 6, stroke.is_visible() ? 1 : 0);
-        sqlite3_bind_int(ins_stmt, 7, stroke.is_locked() ? 1 : 0);
-        sqlite3_bind_blob(ins_stmt, 8, blob.data(), static_cast<int>(blob.size()), SQLITE_TRANSIENT);
+        sqlite3_bind_int64(ins_stmt, 2, stroke.object_id());
+        sqlite3_bind_int64(ins_stmt, 3, stroke.part_id());
+        sqlite3_bind_int(ins_stmt, 4, static_cast<int32_t>(stroke.brush_type()));
+        sqlite3_bind_text(ins_stmt, 5, stroke.color_hex().c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_double(ins_stmt, 6, stroke.base_width());
+        sqlite3_bind_int(ins_stmt, 7, stroke.stroke_order());
+        sqlite3_bind_int(ins_stmt, 8, stroke.is_visible() ? 1 : 0);
+        sqlite3_bind_int(ins_stmt, 9, stroke.is_locked() ? 1 : 0);
+        sqlite3_bind_blob(ins_stmt, 10, blob.data(), static_cast<int>(blob.size()), SQLITE_TRANSIENT);
         if (sqlite3_step(ins_stmt) != SQLITE_DONE) {
             sqlite3_finalize(ins_stmt);
             db_.execute_sql("ROLLBACK;");
@@ -185,7 +187,7 @@ bool ProjectRepository::load_drawing_strokes(int64_t project_id, living_canvas::
     }
 
     const char* sel_sql =
-        "SELECT stroke_id, brush_type, color_hex, base_width, stroke_order, visible, locked, points_blob "
+        "SELECT stroke_id, COALESCE(object_id, 0), COALESCE(part_id, 0), brush_type, color_hex, base_width, stroke_order, visible, locked, points_blob "
         "FROM drawing_strokes WHERE layer_id=?1 ORDER BY stroke_order ASC, stroke_id ASC;";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(handle, sel_sql, -1, &stmt, nullptr) != SQLITE_OK) {
@@ -196,21 +198,25 @@ bool ProjectRepository::load_drawing_strokes(int64_t project_id, living_canvas::
     std::vector<living_canvas::drawing::Stroke> loaded;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         const int64_t sid = sqlite3_column_int64(stmt, 0);
-        const auto btype = static_cast<living_canvas::drawing::BrushType>(sqlite3_column_int(stmt, 1));
-        const auto* ctext = sqlite3_column_text(stmt, 2);
+        const int64_t obj_id = sqlite3_column_int64(stmt, 1);
+        const int64_t prt_id = sqlite3_column_int64(stmt, 2);
+        const auto btype = static_cast<living_canvas::drawing::BrushType>(sqlite3_column_int(stmt, 3));
+        const auto* ctext = sqlite3_column_text(stmt, 4);
         const std::string color = ctext ? reinterpret_cast<const char*>(ctext) : "#F9FAFB";
-        const float width = static_cast<float>(sqlite3_column_double(stmt, 3));
-        const int32_t order = sqlite3_column_int(stmt, 4);
-        const bool vis = sqlite3_column_int(stmt, 5) != 0;
-        const bool lck = sqlite3_column_int(stmt, 6) != 0;
+        const float width = static_cast<float>(sqlite3_column_double(stmt, 5));
+        const int32_t order = sqlite3_column_int(stmt, 6);
+        const bool vis = sqlite3_column_int(stmt, 7) != 0;
+        const bool lck = sqlite3_column_int(stmt, 8) != 0;
 
         living_canvas::drawing::Stroke s(sid, 1, btype, color, width);
+        s.set_object_id(obj_id);
+        s.set_part_id(prt_id);
         s.set_stroke_order(order);
         s.set_visible(vis);
         s.set_locked(lck);
 
-        const void* blob_ptr = sqlite3_column_blob(stmt, 7);
-        const int blob_bytes = sqlite3_column_bytes(stmt, 7);
+        const void* blob_ptr = sqlite3_column_blob(stmt, 9);
+        const int blob_bytes = sqlite3_column_bytes(stmt, 9);
         if (blob_ptr && blob_bytes > 0) {
             s.deserialize_points_blob(static_cast<const uint8_t*>(blob_ptr), static_cast<std::size_t>(blob_bytes));
             s.apply_smoothing(0.35f);

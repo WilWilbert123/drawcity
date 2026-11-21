@@ -30,6 +30,7 @@ public:
     bool exit_vehicle(int64_t character_id, int64_t vehicle_id);
     int64_t attach_held_object(int64_t character_id, int64_t object_id, double offset_x, double offset_y);
     void step_world(double dt);
+    void reset_bodies();
 
     godot::Dictionary get_body_state(int64_t object_id);
 

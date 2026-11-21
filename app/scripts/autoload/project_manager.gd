@@ -29,9 +29,15 @@ func save_current_project() -> bool:
 		return false
 	if AppState.current_project_id <= 0:
 		create_new_project(AppState.current_project_title)
-	return DatabaseManager.storage_bridge.save_project_drawing(
+	var ok := DatabaseManager.storage_bridge.save_project_drawing(
 		AppState.current_project_id, AppState.drawing_bridge
 	)
+	if not ok:
+		create_new_project(AppState.current_project_title)
+		ok = DatabaseManager.storage_bridge.save_project_drawing(
+			AppState.current_project_id, AppState.drawing_bridge
+		)
+	return ok
 
 func load_project(project_id: int) -> bool:
 	if not DatabaseManager.is_ready:

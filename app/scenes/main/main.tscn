@@ -16,29 +16,76 @@ var anim_ctrl := AnimationController.new()
 var world_ctrl := WorldController.new()
 var export_ctrl := ExportController.new()
 
-@onready var status_label: Label = $RootVBox/HeaderBar/StatusLabel
-@onready var screen_badge: Label = $RootVBox/ScreenTabsBar/ActiveScreenBadge
+@onready var top_nav_panel: PanelContainer = $RootVBox/TopNavPanel
+@onready var sub_toolbar_panel: PanelContainer = $RootVBox/SubToolbarPanel
+@onready var side_panel_container: PanelContainer = $RootVBox/WorkspaceSplit/SidePanelContainer
+@onready var canvas_panel: PanelContainer = $RootVBox/WorkspaceSplit/CanvasContainer
+@onready var status_label: Label = $RootVBox/TopNavPanel/TopNavHBox/StatusLabel
 @onready var canvas_view: DrawingCanvasView = $RootVBox/WorkspaceSplit/CanvasContainer/DrawingCanvas
-@onready var inspect_label: Label = $RootVBox/WorkspaceSplit/SidePanel/InspectorText
-@onready var sub_toolbar: HBoxContainer = $RootVBox/SubToolbar
+@onready var inspect_label: Label = $RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/InspectorCard/InspectorText
+@onready var sub_toolbar: HBoxContainer = $RootVBox/SubToolbarPanel/SubToolbarHBox
+
+var _screen_buttons: Dictionary = {}
+var _next_city_object_id: int = 200
+var _city_ambient_active: bool = true
 
 func _ready() -> void:
-	_refresh_status(\"LIVING CANVAS Ready | Offline SQLite v%d | Strokes: %d\" % [
+	_apply_studio_chrome()
+	_refresh_status(\"Ready  •  Offline SQLite v%d  •  Preserved Strokes: %d\" % [
 		DatabaseManager.sqlite_manager.get_schema_version() if DatabaseManager.is_ready else 0,
 		AppState.drawing_bridge.get_stroke_count() if AppState.drawing_bridge != null else 0
 	])
 	EventBus.stroke_committed.connect(_on_stroke_committed)
 	_switch_screen(\"drawing_editor\")
+	_update_inspector_panel(\"none\", 0.0)
+
+func _apply_studio_chrome() -> void:
+	top_nav_panel.add_theme_stylebox_override(\"panel\", StudioButtons.make_flat_box(\"#131722\", \"#22293A\", 0, 16, 8))
+	sub_toolbar_panel.add_theme_stylebox_override(\"panel\", StudioButtons.make_flat_box(\"#171C29\", \"#232B3E\", 0, 16, 8))
+	side_panel_container.add_theme_stylebox_override(\"panel\", StudioButtons.make_flat_box(\"#141824\", \"#232B3E\", 10, 14, 14))
+	canvas_panel.add_theme_stylebox_override(\"panel\", StudioButtons.make_flat_box(\"#0E1118\", \"#232B3E\", 10, 2, 2))
+	$RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/InspectorCard.add_theme_stylebox_override(
+		\"panel\", StudioButtons.make_flat_box(\"#1B2130\", \"#2D374E\", 8, 12, 10)
+	)
+
+	_screen_buttons = {
+		\"welcome\": $RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox/Tab1Welcome,
+		\"profile_setup\": $RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox/Tab2Profile,
+		\"home\": $RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox/Tab3Home,
+		\"drawing_editor\": $RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox/Tab4Editor,
+		\"rig_editor\": $RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox/Tab5Rig,
+		\"animation_studio\": $RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox/Tab6Anim,
+		\"living_world\": $RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox/Tab7World,
+		\"settings\": $RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox/Tab8Settings
+	}
+
+	StudioButtons.style_secondary_button($RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid/BtnAddBuilding, false)
+	StudioButtons.style_secondary_button($RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid/BtnAddTree, false)
+	StudioButtons.style_secondary_button($RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid/BtnAddCloud, false)
+	StudioButtons.style_secondary_button($RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid/BtnAddBird, false)
+	StudioButtons.style_secondary_button($RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid/BtnAddCar, false)
+	StudioButtons.style_secondary_button($RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid/BtnAddCitizen, false)
+
+	StudioButtons.style_accent_button($RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/QuickRigBtn, \"#1E3A8A\", \"#3B82F6\")
+	StudioButtons.style_accent_button($RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/QuickWalkBtn, \"#065F46\", \"#10B981\")
+	StudioButtons.style_accent_button($RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/QuickJumpBtn, \"#78350F\", \"#F59E0B\")
+	StudioButtons.style_accent_button($RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/QuickStopAnimBtn, \"#374151\", \"#6B7280\")
+	StudioButtons.style_accent_button($RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/QuickDriveCarBtn, \"#4C1D95\", \"#8B5CF6\")
+	StudioButtons.style_accent_button($RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/QuickSaveBtn, \"#1E293B\", \"#38BDF8\")
+	StudioButtons.style_accent_button($RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/QuickLoadCityBtn, \"#14532D\", \"#22C55E\")
 
 func _process(delta: float) -> void:
 	var needs_redraw := false
+	if _city_ambient_active and canvas_view != null and canvas_view.renderer != null:
+		canvas_view.renderer.city_time_sec += delta
+		needs_redraw = true
 	if AppState.active_stickman_rig_id > 0:
 		anim_ctrl.step(delta)
 		needs_redraw = true
 	if world_ctrl.is_simulating:
 		var move_dir := Input.get_axis(\"ui_left\", \"ui_right\")
 		if absf(move_dir) < 0.05:
-			move_dir = 1.0
+			move_dir = 0.45
 		var jump_req := Input.is_action_just_pressed(\"ui_accept\")
 		world_ctrl.step_simulation(delta, move_dir, jump_req, move_dir, 0.0, 0.0)
 		needs_redraw = true
@@ -47,8 +94,8 @@ func _process(delta: float) -> void:
 
 func _switch_screen(screen_id: String) -> void:
 	StudioNavigation.navigate_to(screen_id)
-	if screen_badge != null:
-		screen_badge.text = \"Screen: \" + screen_id.to_upper()
+	for key in _screen_buttons.keys():
+		StudioButtons.style_secondary_button(_screen_buttons[key], key == screen_id)
 	_rebuild_sub_toolbar(screen_id)
 
 func _rebuild_sub_toolbar(screen_id: String) -> void:
@@ -58,44 +105,44 @@ func _rebuild_sub_toolbar(screen_id: String) -> void:
 		child.queue_free()
 
 	if screen_id == \"welcome\":
-		_add_tool_btn(\"Create Local Profile & Continue\", func(): _switch_screen(\"profile_setup\"))
+		_add_tool_btn(\"Create Local Profile & Continue\", func(): _switch_screen(\"profile_setup\"), true)
+		_add_tool_btn(\"Open City Canvas Directly\", func(): _switch_screen(\"drawing_editor\"))
 	elif screen_id == \"profile_setup\":
-		_add_tool_btn(\"Create Profile 'Offline Creator'\", func():
+		_add_tool_btn(\"Save Local Profile 'Offline Creator'\", func():
 			if DatabaseManager.is_ready:
 				var uid := DatabaseManager.storage_bridge.create_user_profile(\"Offline Creator\", \"artist_01\")
 				AppState.current_user_id = uid
-				_refresh_status(\"Created Local Offline Profile ID #%d\" % uid)
+				_refresh_status(\"Created Offline Profile #%d\" % uid)
 			_switch_screen(\"home\")
-		)
+		, true)
 	elif screen_id == \"home\":
-		_add_tool_btn(\"+ New Project\", func():
-			var pid := home_ctrl.create_project(\"Living Stickman & Car #\" + str(Time.get_ticks_msec() % 1000))
-			_refresh_status(\"Created Project #%d in SQLite\" % pid)
+		_add_tool_btn(\"📂 Load My Saved City (SQLite)\", _on_btn_load_saved_city_pressed, true)
+		_add_tool_btn(\"🏙️ Load Full Demo Draw City\", _on_btn_load_demo_city_pressed)
+		_add_tool_btn(\"+ New Blank City Project\", func():
+			var pid := home_ctrl.create_project(\"Draw City #\" + str(Time.get_ticks_msec() % 1000))
+			AppState.drawing_bridge.clear_canvas()
+			AppState.active_stickman_rig_id = 0
+			canvas_view.refresh_canvas()
+			_refresh_status(\"Created New Blank City Project #%d\" % pid)
 			_switch_screen(\"drawing_editor\")
 		)
 		_add_tool_btn(\"Load Sample Stickman + Car\", func():
-			AppState.drawing_bridge.load_sample_stickman()
+			AppState.drawing_bridge.clear_canvas()
+			AppState.active_stickman_rig_id = 0
 			AppState.drawing_bridge.load_sample_car()
+			AppState.drawing_bridge.commit_unassigned_strokes_to_object(2, 2)
+			AppState.drawing_bridge.load_sample_stickman()
+			AppState.drawing_bridge.commit_unassigned_strokes_to_object(1, 1)
 			canvas_view.refresh_canvas()
 			_on_stroke_committed(0)
-			_refresh_status(\"Loaded Preserved Sample Stickman + Car Strokes\")
-		)
-		_add_tool_btn(\"Load Sample Fish + Ocean\", func():
-			AppState.drawing_bridge.load_sample_fish_and_ocean()
-			canvas_view.refresh_canvas()
-			_on_stroke_committed(0)
-		)
-		_add_tool_btn(\"Load Sample Bird + Sky\", func():
-			AppState.drawing_bridge.load_sample_bird_and_sky()
-			canvas_view.refresh_canvas()
-			_on_stroke_committed(0)
+			_refresh_status(\"Loaded Preserved Sample Stickman + Car\")
 		)
 	elif screen_id == \"drawing_editor\":
-		_add_tool_btn(\"Pencil\", _on_btn_pencil_pressed)
+		_add_tool_btn(\"Pencil\", _on_btn_pencil_pressed, true)
 		_add_tool_btn(\"Pen\", func():
 			canvas_view.input_handler.controller.is_eraser_active = false
 			editor_ctrl.toolbar.select_tool(1)
-			_refresh_status(\"Tool: Pen\")
+			_refresh_status(\"Tool: Pen (Smooth Ink)\")
 		)
 		_add_tool_btn(\"Marker\", _on_btn_marker_pressed)
 		_add_tool_btn(\"Soft Brush\", func():
@@ -104,95 +151,194 @@ func _rebuild_sub_toolbar(screen_id: String) -> void:
 			_refresh_status(\"Tool: Soft Brush\")
 		)
 		_add_tool_btn(\"Eraser\", _on_btn_eraser_pressed)
-		_add_tool_btn(\"Gold #F59E0B\", func(): editor_ctrl.set_brush_color(\"#F59E0B\"))
-		_add_tool_btn(\"Blue #3B82F6\", func(): editor_ctrl.set_brush_color(\"#3B82F6\"))
-		_add_tool_btn(\"Green #10B981\", func(): editor_ctrl.set_brush_color(\"#10B981\"))
-		_add_tool_btn(\"Pink #EC4899\", func(): editor_ctrl.set_brush_color(\"#EC4899\"))
-		_add_tool_btn(\"+ Layer\", func():
-			var lid := editor_ctrl.layers.add_layer(\"Layer\")
-			_refresh_status(\"Added Layer #%d\" % lid)
-		)
+		_add_color_swatch(\"White\", \"#F9FAFB\")
+		_add_color_swatch(\"Gold\", \"#F59E0B\")
+		_add_color_swatch(\"Blue\", \"#3B82F6\")
+		_add_color_swatch(\"Emerald\", \"#10B981\")
+		_add_color_swatch(\"Pink\", \"#EC4899\")
+		_add_tool_btn(\"🏙️ Generate Demo City\", _on_btn_load_demo_city_pressed)
 		_add_tool_btn(\"Undo\", func():
 			UndoManager.perform_undo()
 			canvas_view.refresh_canvas()
 			_refresh_status(\"Undo applied\")
 		)
-		_add_tool_btn(\"Redo\", func():
-			UndoManager.perform_redo()
-			canvas_view.refresh_canvas()
-			_refresh_status(\"Redo applied\")
-		)
-		_add_tool_btn(\"Clear\", func():
+		_add_tool_btn(\"Clear All\", func():
+			anim_ctrl.stop()
+			world_ctrl.is_simulating = false
+			AppState.stickman_in_car = false
+			AppState.active_stickman_rig_id = 0
+			AppState.physics_bridge.reset_bodies()
 			AppState.drawing_bridge.clear_canvas()
 			canvas_view.refresh_canvas()
-			_refresh_status(\"Canvas cleared\")
+			_update_inspector_panel(\"none\", 0.0)
+			_refresh_status(\"Canvas & City Reset\")
 		)
 	elif screen_id == \"rig_editor\":
-		_add_tool_btn(\"Draw Sample Stickman\", func():
-			if AppState.drawing_bridge.get_stroke_count() == 0:
-				AppState.drawing_bridge.load_sample_stickman()
-			canvas_view.refresh_canvas()
-			_on_stroke_committed(0)
-		)
-		_add_tool_btn(\"Auto-Rig Original Stickman (11 Joints / 10 Bones)\", _on_btn_auto_rig_pressed)
-		_add_tool_btn(\"Toggle Rig Overlay\", func():
+		_add_tool_btn(\"Auto-Rig Stickman Citizen (11 Joints / 10 Bones)\", _on_btn_auto_rig_pressed, true)
+		_add_tool_btn(\"Show / Hide Skeleton Overlay\", func():
 			canvas_view.renderer.show_rig_overlay = not canvas_view.renderer.show_rig_overlay
 			canvas_view.refresh_canvas()
+			_refresh_status(\"Skeleton Overlay: \" + (\"VISIBLE\" if canvas_view.renderer.show_rig_overlay else \"HIDDEN\"))
+		)
+		_add_tool_btn(\"Reset Pose to Original Drawing\", func():
+			anim_ctrl.stop()
+			canvas_view.refresh_canvas()
+			_refresh_status(\"Restored Original Drawn Rest Pose\")
 		)
 	elif screen_id == \"animation_studio\":
 		for clip in [\"idle\", \"walk\", \"run\", \"jump\", \"fall\", \"fly\", \"swim\"]:
 			var clip_name: String = clip
-			_add_tool_btn(\"Play '\" + clip_name + \"'\", func():
+			_add_tool_btn(\"▶ \" + clip_name.capitalize(), func():
 				if AppState.active_stickman_rig_id <= 0:
 					_on_btn_auto_rig_pressed()
 				anim_ctrl.play(clip_name)
-				_refresh_status(\"Playing preset '\" + clip_name + \"' on original drawing\")
-			)
-		_add_tool_btn(\"Pause\", func(): anim_ctrl.pause())
-		_add_tool_btn(\"Stop\", func(): anim_ctrl.stop())
-	elif screen_id == \"living_world\":
-		_add_tool_btn(\"Play / Pause World Physics\", func():
-			world_ctrl.is_simulating = not world_ctrl.is_simulating
-			_refresh_status(\"World Physics Simulation: \" + (\"RUNNING\" if world_ctrl.is_simulating else \"PAUSED\"))
+				_on_stroke_committed(0)
+				_refresh_status(\"Animating '\" + clip_name + \"' on Original Citizen Artwork\")
+			, clip_name == \"walk\")
+		_add_tool_btn(\"⏸ Pause\", func():
+			anim_ctrl.pause()
+			_refresh_status(\"Animation Paused\")
 		)
-		_add_tool_btn(\"Stickman Enter / Drive Drawn Car\", _on_btn_drive_car_pressed)
-		_add_tool_btn(\"Reset World Positions\", func():
+		_add_tool_btn(\"⏹ Stop & Reset Pose\", _on_btn_stop_anim_pressed)
+	elif screen_id == \"living_world\":
+		_add_tool_btn(\"▶ Toggle City Physics\", func():
+			world_ctrl.is_simulating = not world_ctrl.is_simulating
+			_refresh_status(\"City Physics: \" + (\"RUNNING\" if world_ctrl.is_simulating else \"PAUSED\"))
+		, true)
+		_add_tool_btn(\"🚗 Citizen Enter / Drive Car\", _on_btn_drive_car_pressed)
+		_add_tool_btn(\"🏙️ Load Full Demo Draw City\", _on_btn_load_demo_city_pressed)
+		_add_tool_btn(\"↺ Reset City Positions\", func():
 			world_ctrl.is_simulating = false
-			AppState.physics_bridge.set_environment(980.0, 620.0, 520.0, 20.0)
+			AppState.stickman_in_car = false
+			AppState.physics_bridge.reset_bodies()
 			canvas_view.refresh_canvas()
-			_refresh_status(\"World reset\")
+			_on_stroke_committed(0)
+			_refresh_status(\"City Positions Reset to Origin\")
 		)
 	elif screen_id == \"settings\":
-		_add_tool_btn(\"Backup SQLite DB\", func():
+		_add_tool_btn(\"Backup SQLite Database\", func():
 			var ok := DatabaseManager.sqlite_manager.create_backup()
-			_refresh_status(\"SQLite Online Backup: \" + (\"SUCCESS\" if ok else \"FAILED\"))
-		)
+			_refresh_status(\"SQLite Backup: \" + (\"SAVED\" if ok else \"FAILED\"))
+		, true)
 		_add_tool_btn(\"Export Editable Project JSON\", func():
 			var ok := export_ctrl.export_project_bundle()
 			_refresh_status(\"Exported Editable JSON Bundle: \" + str(ok))
 		)
 		_add_tool_btn(\"Export Canvas PNG\", func():
 			var ok := export_ctrl.export_canvas_png(get_viewport())
-			_refresh_status(\"Exported Canvas PNG to user://exports/images/: \" + str(ok))
+			_refresh_status(\"Exported PNG to user://exports/images/: \" + str(ok))
+		)
+		_add_tool_btn(\"Toggle Grid\", func():
+			canvas_view.renderer.show_grid = not canvas_view.renderer.show_grid
+			canvas_view.refresh_canvas()
 		)
 
-func _add_tool_btn(label_text: String, callback: Callable) -> void:
+func _add_tool_btn(label_text: String, callback: Callable, primary: bool = false) -> void:
 	var btn := Button.new()
 	btn.text = label_text
+	if primary:
+		StudioButtons.style_primary_button(btn, \"#2563EB\")
+	else:
+		StudioButtons.style_secondary_button(btn, false)
 	btn.pressed.connect(callback)
 	sub_toolbar.add_child(btn)
+
+func _add_color_swatch(label_text: String, hex_code: String) -> void:
+	var btn := Button.new()
+	btn.text = \"● \" + label_text
+	StudioButtons.style_accent_button(btn, \"#1E2433\", hex_code)
+	btn.add_theme_color_override(\"font_color\", Color.html(hex_code))
+	btn.pressed.connect(func():
+		canvas_view.input_handler.controller.is_eraser_active = false
+		editor_ctrl.set_brush_color(hex_code)
+		_refresh_status(\"Brush Color: \" + label_text + \" (\" + hex_code + \")\")
+	)
+	sub_toolbar.add_child(btn)
+
+func _commit_drawn_city_element(role_label: String, target_object_id: int, part_id: int) -> void:
+	var count := AppState.drawing_bridge.commit_unassigned_strokes_to_object(target_object_id, part_id)
+	if count <= 0:
+		_refresh_status(\"Draw a \" + role_label + \" on the canvas first, then click '+ \" + role_label + \"'!\")
+		return
+	if part_id == 1:
+		# Automatically rig the newly drawn stickman citizen!
+		var rig_id := rig_ctrl.auto_rig_stickman(1, Rect2(360, 160, 220, 360))
+		_refresh_status(\"Added Drawn Citizen (%d strokes) & Rigged (#%d)! Draw your next city object.\" % [count, rig_id])
+	else:
+		_refresh_status(\"Added Drawn %s (%d strokes) to City! Now draw your next object.\" % [role_label, count])
+	_on_stroke_committed(0)
+	canvas_view.refresh_canvas()
+
+func _on_add_building_pressed() -> void:
+	_next_city_object_id += 1
+	_commit_drawn_city_element(\"Building\", _next_city_object_id, 10)
+
+func _on_add_tree_pressed() -> void:
+	_next_city_object_id += 1
+	_commit_drawn_city_element(\"Tree\", _next_city_object_id, 11)
+
+func _on_add_cloud_pressed() -> void:
+	_next_city_object_id += 1
+	_commit_drawn_city_element(\"Drifting Cloud\", _next_city_object_id, 3)
+
+func _on_add_bird_pressed() -> void:
+	_next_city_object_id += 1
+	_commit_drawn_city_element(\"Flying Bird\", _next_city_object_id, 4)
+
+func _on_add_car_pressed() -> void:
+	_commit_drawn_city_element(\"Car\", 2, 2)
+
+func _on_add_citizen_pressed() -> void:
+	_commit_drawn_city_element(\"Stickman Citizen\", 1, 1)
+
+func _on_btn_load_demo_city_pressed() -> void:
+	anim_ctrl.stop()
+	world_ctrl.is_simulating = false
+	AppState.stickman_in_car = false
+	AppState.physics_bridge.reset_bodies()
+	AppState.drawing_bridge.clear_canvas()
+	AppState.drawing_bridge.load_sample_city()
+	var rig_id := rig_ctrl.auto_rig_stickman(1, Rect2(360, 160, 220, 360))
+	anim_ctrl.play(\"walk\")
+	canvas_view.refresh_canvas()
+	_on_stroke_committed(0)
+	_refresh_status(\"Loaded Complete Interactive Draw City (Buildings, Tree, Drifting Clouds, Bird, Car & Walking Citizen #%d)\" % rig_id)
+
+func _on_btn_load_saved_city_pressed() -> void:
+	var ok := ProjectManager.load_project(AppState.current_project_id)
+	if ok and AppState.drawing_bridge.get_stroke_count() > 0:
+		rig_ctrl.auto_rig_stickman(1, Rect2(360, 160, 220, 360))
+		canvas_view.refresh_canvas()
+		_on_stroke_committed(0)
+		_refresh_status(\"Loaded Saved City Project #%d from SQLite (%d editable strokes)\" % [
+			AppState.current_project_id, AppState.drawing_bridge.get_stroke_count()
+		])
+	else:
+		_refresh_status(\"No saved strokes found in Project #%d yet — draw or click 'Save City to SQLite' first.\" % AppState.current_project_id)
 
 func _on_stroke_committed(_stroke_id: int) -> void:
 	var res_json := AppState.recognition_bridge.classify_drawing(AppState.drawing_bridge)
 	var parsed = JSON.parse_string(res_json)
 	var cat := str(parsed.get(\"category\", \"other\")) if typeof(parsed) == TYPE_DICTIONARY else \"other\"
 	var conf := float(parsed.get(\"confidence\", 0.0)) if typeof(parsed) == TYPE_DICTIONARY else 0.0
-	_refresh_status(\"Preserved Original Strokes: %d | Offline Recognition: %s (%.0f%%)\" % [
-		AppState.drawing_bridge.get_stroke_count(), cat, conf * 100.0
+	var unassigned := AppState.drawing_bridge.get_unassigned_stroke_count() if AppState.drawing_bridge != null else 0
+	_refresh_status(\"Total City Strokes: %d (New Unassigned: %d)  •  Detected: %s (%.0f%%)\" % [
+		AppState.drawing_bridge.get_stroke_count(), unassigned, cat.capitalize(), conf * 100.0
 	])
-	inspect_label.text = \"Classified: %s\\nConfidence: %.2f\\nOriginal Strokes: %d\\nActive Rig ID: %d\\nDriving Car: %s\" % [
-		cat, conf, AppState.drawing_bridge.get_stroke_count(), AppState.active_stickman_rig_id, str(AppState.stickman_in_car)
-	]
+	_update_inspector_panel(cat, conf)
+
+func _update_inspector_panel(cat: String, conf: float) -> void:
+	if inspect_label == null:
+		return
+	var active_clip := AppState.animation_bridge.get_active_clip_name() if AppState.animation_bridge != null else \"idle\"
+	var total_strokes := AppState.drawing_bridge.get_stroke_count() if AppState.drawing_bridge != null else 0
+	var unassigned := AppState.drawing_bridge.get_unassigned_stroke_count() if AppState.drawing_bridge != null else 0
+	inspect_label.text = (
+		\"Recognized:  %s (%.0f%%)\\n\" % [cat.capitalize(), conf * 100.0] +
+		\"Total City Strokes:  %d  (New: %d)\\n\" % [total_strokes, unassigned] +
+		\"Citizen Rig:  %s\\n\" % (\"#\" + str(AppState.active_stickman_rig_id) + \" (11 Joints)\" if AppState.active_stickman_rig_id > 0 else \"Not Rigged\") +
+		\"Animation:  %s  |  Mode:  %s\" % [active_clip.capitalize(), \"Driving Car\" if AppState.stickman_in_car else \"On Foot\"]
+	)
 
 func _refresh_status(msg: String) -> void:
 	if status_label != null:
@@ -201,7 +347,7 @@ func _refresh_status(msg: String) -> void:
 func _on_btn_pencil_pressed() -> void:
 	canvas_view.input_handler.controller.is_eraser_active = false
 	editor_ctrl.toolbar.select_tool(0)
-	_refresh_status(\"Tool: Pencil (Original Stroke Preservation Mode)\")
+	_refresh_status(\"Tool: Pencil (Original Stroke Preservation)\")
 
 func _on_btn_marker_pressed() -> void:
 	canvas_view.input_handler.controller.is_eraser_active = false
@@ -214,32 +360,57 @@ func _on_btn_eraser_pressed() -> void:
 	_refresh_status(\"Tool: Eraser\")
 
 func _on_btn_auto_rig_pressed() -> void:
+	anim_ctrl.stop()
 	if AppState.drawing_bridge.get_stroke_count() == 0:
 		AppState.drawing_bridge.load_sample_stickman()
+	# If user just drew a stickman without clicking '+ Citizen', assign those unassigned strokes to Citizen (1, 1)
+	if AppState.drawing_bridge.get_unassigned_stroke_count() > 0:
+		AppState.drawing_bridge.commit_unassigned_strokes_to_object(1, 1)
 	var rig_id := rig_ctrl.auto_rig_stickman(AppState.active_stickman_object_id, Rect2(360, 160, 220, 360))
 	canvas_view.refresh_canvas()
 	_on_stroke_committed(0)
-	_refresh_status(\"Auto-Rigged Original Stickman Artwork (Rig ID #%d, 11 Joints, 10 Bones)\" % rig_id)
+	_refresh_status(\"Auto-Rigged Citizen Stickman (Rig #%d • Buildings/Trees Stay Anchored)\" % rig_id)
 
 func _on_btn_walk_pressed() -> void:
 	if AppState.active_stickman_rig_id <= 0:
 		_on_btn_auto_rig_pressed()
 	anim_ctrl.play(\"walk\")
 	canvas_view.refresh_canvas()
-	_refresh_status(\"Playing 'walk' cycle on User's Original Rigged Stickman\")
+	_on_stroke_committed(0)
+	_refresh_status(\"Playing Natural 'Walk' Cycle on Your Citizen Stickman\")
+
+func _on_btn_jump_pressed() -> void:
+	if AppState.active_stickman_rig_id <= 0:
+		_on_btn_auto_rig_pressed()
+	anim_ctrl.play(\"jump\")
+	canvas_view.refresh_canvas()
+	_on_stroke_committed(0)
+	_refresh_status(\"Playing 'Jump' Cycle on Your Citizen Stickman\")
+
+func _on_btn_stop_anim_pressed() -> void:
+	anim_ctrl.stop()
+	world_ctrl.is_simulating = false
+	AppState.stickman_in_car = false
+	AppState.physics_bridge.reset_bodies()
+	canvas_view.refresh_canvas()
+	_on_stroke_committed(0)
+	_refresh_status(\"Stopped Animation & Restored Original Rest Pose\")
 
 func _on_btn_drive_car_pressed() -> void:
-	if AppState.drawing_bridge.get_stroke_count() < 2:
-		AppState.drawing_bridge.load_sample_stickman()
-		AppState.drawing_bridge.load_sample_car()
+	if AppState.drawing_bridge.get_stroke_count() == 0:
+		AppState.drawing_bridge.load_sample_city()
+		rig_ctrl.auto_rig_stickman(1, Rect2(360, 160, 220, 360))
 	var mounted := world_ctrl.toggle_stickman_in_car()
 	world_ctrl.is_simulating = mounted
+	if not mounted:
+		AppState.physics_bridge.reset_bodies()
+		canvas_view.refresh_canvas()
 	_on_stroke_committed(0)
-	_refresh_status(\"Stickman Mounted & Driving Drawn Car!\" if mounted else \"Stickman Exited Drawn Car\")
+	_refresh_status(\"Citizen Driving Car Through City (Buildings Stay Anchored!)\" if mounted else \"Exited Car & Reset Position\")
 
 func _on_btn_save_pressed() -> void:
 	var ok := ProjectManager.save_current_project()
-	_refresh_status(\"Project & Editable Strokes Saved to SQLite (ok=%s)\" % str(ok))
+	_refresh_status(\"Saved Entire City & Editable Strokes to SQLite Database (ok=%s)\" % str(ok))
 
 func _on_tab_welcome() -> void: _switch_screen(\"welcome\")
 func _on_tab_profile() -> void: _switch_screen(\"profile_setup\")
@@ -265,139 +436,216 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-color = Color(0.0705882, 0.0823529, 0.117647, 1)
+color = Color(0.0627451, 0.0745098, 0.105882, 1)
 
 [node name="RootVBox" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+theme_override_constants/separation = 0
 
-[node name="ScreenTabsBar" type="HBoxContainer" parent="RootVBox"]
-custom_minimum_size = Vector2(0, 40)
+[node name="TopNavPanel" type="PanelContainer" parent="RootVBox"]
 layout_mode = 2
 
-[node name="Tab1Welcome" type="Button" parent="RootVBox/ScreenTabsBar"]
+[node name="TopNavHBox" type="HBoxContainer" parent="RootVBox/TopNavPanel"]
 layout_mode = 2
-text = "1. Welcome"
+theme_override_constants/separation = 14
 
-[node name="Tab2Profile" type="Button" parent="RootVBox/ScreenTabsBar"]
+[node name="BrandTitle" type="Label" parent="RootVBox/TopNavPanel/TopNavHBox"]
 layout_mode = 2
-text = "2. Profile"
+theme_override_colors/font_color = Color(0.976471, 0.980392, 0.984314, 1)
+theme_override_font_sizes/font_size = 17
+text = "◆ LIVING CANVAS (Draw City)"
 
-[node name="Tab3Home" type="Button" parent="RootVBox/ScreenTabsBar"]
+[node name="ScreenTabsHBox" type="HBoxContainer" parent="RootVBox/TopNavPanel/TopNavHBox"]
 layout_mode = 2
-text = "3. Home"
+theme_override_constants/separation = 6
 
-[node name="Tab4Editor" type="Button" parent="RootVBox/ScreenTabsBar"]
+[node name="Tab1Welcome" type="Button" parent="RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox"]
 layout_mode = 2
-text = "4. Drawing Editor"
+text = "Welcome"
 
-[node name="Tab5Rig" type="Button" parent="RootVBox/ScreenTabsBar"]
+[node name="Tab2Profile" type="Button" parent="RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox"]
 layout_mode = 2
-text = "5. Rig Editor"
+text = "Profile"
 
-[node name="Tab6Anim" type="Button" parent="RootVBox/ScreenTabsBar"]
+[node name="Tab3Home" type="Button" parent="RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox"]
 layout_mode = 2
-text = "6. Animation Studio"
+text = "Home"
 
-[node name="Tab7World" type="Button" parent="RootVBox/ScreenTabsBar"]
+[node name="Tab4Editor" type="Button" parent="RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox"]
 layout_mode = 2
-text = "7. Living World"
+text = "Draw City"
 
-[node name="Tab8Settings" type="Button" parent="RootVBox/ScreenTabsBar"]
+[node name="Tab5Rig" type="Button" parent="RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox"]
 layout_mode = 2
-text = "8. Settings"
+text = "Rigging"
 
-[node name="ActiveScreenBadge" type="Label" parent="RootVBox/ScreenTabsBar"]
+[node name="Tab6Anim" type="Button" parent="RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox"]
 layout_mode = 2
-size_flags_horizontal = 3
-text = "Screen: DRAWING_EDITOR"
-horizontal_alignment = 2
+text = "Animate"
 
-[node name="HeaderBar" type="HBoxContainer" parent="RootVBox"]
-custom_minimum_size = Vector2(0, 44)
+[node name="Tab7World" type="Button" parent="RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox"]
 layout_mode = 2
+text = "World"
 
-[node name="BrandTitle" type="Label" parent="RootVBox/HeaderBar"]
+[node name="Tab8Settings" type="Button" parent="RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox"]
 layout_mode = 2
-text = "  LIVING CANVAS (Draw City)  |  "
+text = "Settings"
 
-[node name="BtnPencil" type="Button" parent="RootVBox/HeaderBar"]
-layout_mode = 2
-text = "Pencil"
-
-[node name="BtnMarker" type="Button" parent="RootVBox/HeaderBar"]
-layout_mode = 2
-text = "Marker"
-
-[node name="BtnEraser" type="Button" parent="RootVBox/HeaderBar"]
-layout_mode = 2
-text = "Eraser"
-
-[node name="BtnAutoRig" type="Button" parent="RootVBox/HeaderBar"]
-layout_mode = 2
-text = "Rig Stickman"
-
-[node name="BtnWalk" type="Button" parent="RootVBox/HeaderBar"]
-layout_mode = 2
-text = "Animate Walk"
-
-[node name="BtnDriveCar" type="Button" parent="RootVBox/HeaderBar"]
-layout_mode = 2
-text = "Enter & Drive Car"
-
-[node name="BtnSave" type="Button" parent="RootVBox/HeaderBar"]
-layout_mode = 2
-text = "Save to SQLite"
-
-[node name="StatusLabel" type="Label" parent="RootVBox/HeaderBar"]
+[node name="StatusLabel" type="Label" parent="RootVBox/TopNavPanel/TopNavHBox"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.580392, 0.639216, 0.721569, 1)
+theme_override_font_sizes/font_size = 14
 text = "Initializing..."
 horizontal_alignment = 2
 
-[node name="SubToolbar" type="HBoxContainer" parent="RootVBox"]
-custom_minimum_size = Vector2(0, 38)
+[node name="SubToolbarPanel" type="PanelContainer" parent="RootVBox"]
 layout_mode = 2
+
+[node name="SubToolbarHBox" type="HBoxContainer" parent="RootVBox/SubToolbarPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
 
 [node name="WorkspaceSplit" type="HSplitContainer" parent="RootVBox"]
 layout_mode = 2
 size_flags_vertical = 3
-split_offset = 1480
+split_offset = 1540
 
-[node name="CanvasContainer" type="Panel" parent="RootVBox/WorkspaceSplit"]
+[node name="CanvasContainer" type="PanelContainer" parent="RootVBox/WorkspaceSplit"]
 layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="DrawingCanvas" parent="RootVBox/WorkspaceSplit/CanvasContainer" instance=ExtResource("1")]
-layout_mode = 1
-
-[node name="SidePanel" type="VBoxContainer" parent="RootVBox/WorkspaceSplit"]
-custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
 
-[node name="SideHeader" type="Label" parent="RootVBox/WorkspaceSplit/SidePanel"]
+[node name="SidePanelContainer" type="PanelContainer" parent="RootVBox/WorkspaceSplit"]
+custom_minimum_size = Vector2(330, 0)
 layout_mode = 2
-text = "Object & Rig Inspector"
 
-[node name="InspectorText" type="Label" parent="RootVBox/WorkspaceSplit/SidePanel"]
+[node name="SideMargin" type="MarginContainer" parent="RootVBox/WorkspaceSplit/SidePanelContainer"]
 layout_mode = 2
-text = "Draw on the canvas with finger or stylus. Original strokes are preserved."
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="SideVBox" type="VBoxContainer" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SideHeader" type="Label" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.952941, 0.956863, 0.964706, 1)
+theme_override_font_sizes/font_size = 15
+text = "DRAW CITY INSPECTOR"
+
+[node name="InspectorCard" type="PanelContainer" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox"]
+layout_mode = 2
+
+[node name="InspectorText" type="Label" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/InspectorCard"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.819608, 0.835294, 0.858824, 1)
+theme_override_font_sizes/font_size = 13
+text = "Draw an object on the canvas, then tag it into your city below."
 autowrap_mode = 2
 
-[connection signal="pressed" from="RootVBox/ScreenTabsBar/Tab1Welcome" to="." method="_on_tab_welcome"]
-[connection signal="pressed" from="RootVBox/ScreenTabsBar/Tab2Profile" to="." method="_on_tab_profile"]
-[connection signal="pressed" from="RootVBox/ScreenTabsBar/Tab3Home" to="." method="_on_tab_home"]
-[connection signal="pressed" from="RootVBox/ScreenTabsBar/Tab4Editor" to="." method="_on_tab_editor"]
-[connection signal="pressed" from="RootVBox/ScreenTabsBar/Tab5Rig" to="." method="_on_tab_rig"]
-[connection signal="pressed" from="RootVBox/ScreenTabsBar/Tab6Anim" to="." method="_on_tab_anim"]
-[connection signal="pressed" from="RootVBox/ScreenTabsBar/Tab7World" to="." method="_on_tab_world"]
-[connection signal="pressed" from="RootVBox/ScreenTabsBar/Tab8Settings" to="." method="_on_tab_settings"]
-[connection signal="pressed" from="RootVBox/HeaderBar/BtnPencil" to="." method="_on_btn_pencil_pressed"]
-[connection signal="pressed" from="RootVBox/HeaderBar/BtnMarker" to="." method="_on_btn_marker_pressed"]
-[connection signal="pressed" from="RootVBox/HeaderBar/BtnEraser" to="." method="_on_btn_eraser_pressed"]
-[connection signal="pressed" from="RootVBox/HeaderBar/BtnAutoRig" to="." method="_on_btn_auto_rig_pressed"]
-[connection signal="pressed" from="RootVBox/HeaderBar/BtnWalk" to="." method="_on_btn_walk_pressed"]
-[connection signal="pressed" from="RootVBox/HeaderBar/BtnDriveCar" to="." method="_on_btn_drive_car_pressed"]
-[connection signal="pressed" from="RootVBox/HeaderBar/BtnSave" to="." method="_on_btn_save_pressed"]
+[node name="CityBuilderHeader" type="Label" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.580392, 0.639216, 0.721569, 1)
+theme_override_font_sizes/font_size = 12
+text = "CITY BUILDER — ADD CURRENT DRAWING AS:"
+
+[node name="CityGrid" type="GridContainer" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+columns = 2
+
+[node name="BtnAddBuilding" type="Button" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🏢 + Building"
+
+[node name="BtnAddTree" type="Button" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🌳 + Tree"
+
+[node name="BtnAddCloud" type="Button" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "☁️ + Cloud"
+
+[node name="BtnAddBird" type="Button" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🦅 + Bird"
+
+[node name="BtnAddCar" type="Button" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🚗 + Car"
+
+[node name="BtnAddCitizen" type="Button" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🧍 + Citizen"
+
+[node name="ActionsHeader" type="Label" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.580392, 0.639216, 0.721569, 1)
+theme_override_font_sizes/font_size = 12
+text = "ANIMATE & SIMULATE CITY"
+
+[node name="QuickRigBtn" type="Button" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox"]
+layout_mode = 2
+text = "1. Auto-Rig Stickman Citizen"
+
+[node name="QuickWalkBtn" type="Button" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox"]
+layout_mode = 2
+text = "2. ▶ Animate Walk Cycle"
+
+[node name="QuickJumpBtn" type="Button" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox"]
+layout_mode = 2
+text = "3. ▶ Animate Jump Cycle"
+
+[node name="QuickStopAnimBtn" type="Button" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox"]
+layout_mode = 2
+text = "4. ⏹ Stop & Restore Pose"
+
+[node name="QuickDriveCarBtn" type="Button" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox"]
+layout_mode = 2
+text = "5. 🚗 Citizen Enter & Drive Car"
+
+[node name="QuickSaveBtn" type="Button" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox"]
+layout_mode = 2
+text = "6. 💾 Save City to SQLite"
+
+[node name="QuickLoadCityBtn" type="Button" parent="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox"]
+layout_mode = 2
+text = "7. 📂 Load Saved City from SQLite"
+
+[connection signal="pressed" from="RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox/Tab1Welcome" to="." method="_on_tab_welcome"]
+[connection signal="pressed" from="RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox/Tab2Profile" to="." method="_on_tab_profile"]
+[connection signal="pressed" from="RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox/Tab3Home" to="." method="_on_tab_home"]
+[connection signal="pressed" from="RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox/Tab4Editor" to="." method="_on_tab_editor"]
+[connection signal="pressed" from="RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox/Tab5Rig" to="." method="_on_tab_rig"]
+[connection signal="pressed" from="RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox/Tab6Anim" to="." method="_on_tab_anim"]
+[connection signal="pressed" from="RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox/Tab7World" to="." method="_on_tab_world"]
+[connection signal="pressed" from="RootVBox/TopNavPanel/TopNavHBox/ScreenTabsHBox/Tab8Settings" to="." method="_on_tab_settings"]
+[connection signal="pressed" from="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid/BtnAddBuilding" to="." method="_on_add_building_pressed"]
+[connection signal="pressed" from="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid/BtnAddTree" to="." method="_on_add_tree_pressed"]
+[connection signal="pressed" from="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid/BtnAddCloud" to="." method="_on_add_cloud_pressed"]
+[connection signal="pressed" from="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid/BtnAddBird" to="." method="_on_add_bird_pressed"]
+[connection signal="pressed" from="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid/BtnAddCar" to="." method="_on_add_car_pressed"]
+[connection signal="pressed" from="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/CityGrid/BtnAddCitizen" to="." method="_on_add_citizen_pressed"]
+[connection signal="pressed" from="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/QuickRigBtn" to="." method="_on_btn_auto_rig_pressed"]
+[connection signal="pressed" from="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/QuickWalkBtn" to="." method="_on_btn_walk_pressed"]
+[connection signal="pressed" from="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/QuickJumpBtn" to="." method="_on_btn_jump_pressed"]
+[connection signal="pressed" from="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/QuickStopAnimBtn" to="." method="_on_btn_stop_anim_pressed"]
+[connection signal="pressed" from="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/QuickDriveCarBtn" to="." method="_on_btn_drive_car_pressed"]
+[connection signal="pressed" from="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/QuickSaveBtn" to="." method="_on_btn_save_pressed"]
+[connection signal="pressed" from="RootVBox/WorkspaceSplit/SidePanelContainer/SideMargin/SideVBox/QuickLoadCityBtn" to="." method="_on_btn_load_saved_city_pressed"]

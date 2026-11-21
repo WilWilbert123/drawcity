@@ -177,9 +177,22 @@ int64_t RigManager::build_auto_stickman_rig(int64_t object_id, const living_canv
     const int64_t b_r_upper_leg = add_bone(rig_id, "RightUpperLeg", b_body, j_pelvis, j_r_knee);
     add_bone(rig_id, "RightLowerLeg", b_r_upper_leg, j_r_knee, j_r_foot);
 
-    // Associate each original user stroke with its nearest bone midpoint without altering original stroke data
+    // Associate each original user stroke with its anatomical bone so head/face strokes stay attached to Head
     auto* rig = find_mutable_rig(rig_id);
     if (rig) {
+        Bone* head_bone = nullptr;
+        Bone* body_bone = nullptr;
+        for (auto& bone : rig->bones) {
+            if (bone.name() == "Head") {
+                head_bone = &bone;
+            } else if (bone.name() == "Body") {
+                body_bone = &bone;
+            }
+        }
+
+        const float neck_y = top + h * 0.34f;
+        const float pelvis_y = top + h * 0.62f;
+
         for (const auto& s : strokes) {
             const auto sb = s.compute_bounds();
             if (!sb.valid) {
@@ -187,9 +200,28 @@ int64_t RigManager::build_auto_stickman_rig(int64_t object_id, const living_canv
             }
             const float sx = sb.center_x();
             const float sy = sb.center_y();
+
+            // 1. Any stroke in the top 34% (or closed loop head circle + eyes/mouth inside head region) binds to Head
+            if (head_bone && sy <= neck_y && std::fabs(sx - cx) <= w * 0.42f) {
+                head_bone->bind_stroke(s.id());
+                continue;
+            }
+
+            // 2. Central vertical torso strokes between neck and pelvis bind to Body
+            if (body_bone && sy > neck_y && sy <= pelvis_y && std::fabs(sx - cx) <= w * 0.14f) {
+                body_bone->bind_stroke(s.id());
+                continue;
+            }
+
+            // 3. Limb strokes: match left/right upper arms (above pelvis) or upper legs (below pelvis)
             float best_dist2 = 1e30f;
             Bone* best_bone = nullptr;
             for (auto& bone : rig->bones) {
+                // Bind single-stroke arms/legs to their Upper bone root so the entire limb swings cleanly from Shoulder/Pelvis
+                if (bone.name() == "LeftLowerArm" || bone.name() == "RightLowerArm" ||
+                    bone.name() == "LeftLowerLeg" || bone.name() == "RightLowerLeg") {
+                    continue;
+                }
                 const auto* sj = find_joint_const(*rig, bone.start_joint_id());
                 const auto* ej = find_joint_const(*rig, bone.end_joint_id());
                 if (!sj || !ej) {
