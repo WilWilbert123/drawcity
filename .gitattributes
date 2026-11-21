@@ -1,0 +1,17 @@
+* text=auto eol=lf
+*.gd text eol=lf
+*.tscn text eol=lf
+*.tres text eol=lf
+*.gdshader text eol=lf
+*.cpp text eol=lf
+*.hpp text eol=lf
+*.c text eol=lf
+*.h text eol=lf
+*.sql text eol=lf
+*.json text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.webp binary
+*.db binary
+

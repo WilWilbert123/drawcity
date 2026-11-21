@@ -1,0 +1,12 @@
+{
+  "worlds": [
+    {
+      "id": "coastal_highway",
+      "name": "Coastal Highway & Ocean",
+      "gravity_px_s2": 980.0,
+      "ground_level_y": 880.0,
+      "water_level_y": 720.0
+    }
+  ]
+}
+

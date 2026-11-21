@@ -1,0 +1,403 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://drawing/canvas/drawing_canvas.tscn" id="1"]
+[ext_resource type="Script" path="res://app/scripts/controllers/home_controller.gd" id="2"]
+[ext_resource type="Script" path="res://app/scripts/controllers/editor_controller.gd" id="3"]
+[ext_resource type="Script" path="res://app/scripts/controllers/rig_controller.gd" id="4"]
+[ext_resource type="Script" path="res://app/scripts/controllers/world_controller.gd" id="5"]
+
+[sub_resource type="GDScript" id="GDScript_main"]
+script/source = "extends Control
+
+var home_ctrl := HomeController.new()
+var editor_ctrl := EditorController.new()
+var rig_ctrl := RigController.new()
+var anim_ctrl := AnimationController.new()
+var world_ctrl := WorldController.new()
+var export_ctrl := ExportController.new()
+
+@onready var status_label: Label = $RootVBox/HeaderBar/StatusLabel
+@onready var screen_badge: Label = $RootVBox/ScreenTabsBar/ActiveScreenBadge
+@onready var canvas_view: DrawingCanvasView = $RootVBox/WorkspaceSplit/CanvasContainer/DrawingCanvas
+@onready var inspect_label: Label = $RootVBox/WorkspaceSplit/SidePanel/InspectorText
+@onready var sub_toolbar: HBoxContainer = $RootVBox/SubToolbar
+
+func _ready() -> void:
+	_refresh_status(\"LIVING CANVAS Ready | Offline SQLite v%d | Strokes: %d\" % [
+		DatabaseManager.sqlite_manager.get_schema_version() if DatabaseManager.is_ready else 0,
+		AppState.drawing_bridge.get_stroke_count() if AppState.drawing_bridge != null else 0
+	])
+	EventBus.stroke_committed.connect(_on_stroke_committed)
+	_switch_screen(\"drawing_editor\")
+
+func _process(delta: float) -> void:
+	var needs_redraw := false
+	if AppState.active_stickman_rig_id > 0:
+		anim_ctrl.step(delta)
+		needs_redraw = true
+	if world_ctrl.is_simulating:
+		var move_dir := Input.get_axis(\"ui_left\", \"ui_right\")
+		if absf(move_dir) < 0.05:
+			move_dir = 1.0
+		var jump_req := Input.is_action_just_pressed(\"ui_accept\")
+		world_ctrl.step_simulation(delta, move_dir, jump_req, move_dir, 0.0, 0.0)
+		needs_redraw = true
+	if needs_redraw and canvas_view != null:
+		canvas_view.refresh_canvas()
+
+func _switch_screen(screen_id: String) -> void:
+	StudioNavigation.navigate_to(screen_id)
+	if screen_badge != null:
+		screen_badge.text = \"Screen: \" + screen_id.to_upper()
+	_rebuild_sub_toolbar(screen_id)
+
+func _rebuild_sub_toolbar(screen_id: String) -> void:
+	if sub_toolbar == null:
+		return
+	for child in sub_toolbar.get_children():
+		child.queue_free()
+
+	if screen_id == \"welcome\":
+		_add_tool_btn(\"Create Local Profile & Continue\", func(): _switch_screen(\"profile_setup\"))
+	elif screen_id == \"profile_setup\":
+		_add_tool_btn(\"Create Profile 'Offline Creator'\", func():
+			if DatabaseManager.is_ready:
+				var uid := DatabaseManager.storage_bridge.create_user_profile(\"Offline Creator\", \"artist_01\")
+				AppState.current_user_id = uid
+				_refresh_status(\"Created Local Offline Profile ID #%d\" % uid)
+			_switch_screen(\"home\")
+		)
+	elif screen_id == \"home\":
+		_add_tool_btn(\"+ New Project\", func():
+			var pid := home_ctrl.create_project(\"Living Stickman & Car #\" + str(Time.get_ticks_msec() % 1000))
+			_refresh_status(\"Created Project #%d in SQLite\" % pid)
+			_switch_screen(\"drawing_editor\")
+		)
+		_add_tool_btn(\"Load Sample Stickman + Car\", func():
+			AppState.drawing_bridge.load_sample_stickman()
+			AppState.drawing_bridge.load_sample_car()
+			canvas_view.refresh_canvas()
+			_on_stroke_committed(0)
+			_refresh_status(\"Loaded Preserved Sample Stickman + Car Strokes\")
+		)
+		_add_tool_btn(\"Load Sample Fish + Ocean\", func():
+			AppState.drawing_bridge.load_sample_fish_and_ocean()
+			canvas_view.refresh_canvas()
+			_on_stroke_committed(0)
+		)
+		_add_tool_btn(\"Load Sample Bird + Sky\", func():
+			AppState.drawing_bridge.load_sample_bird_and_sky()
+			canvas_view.refresh_canvas()
+			_on_stroke_committed(0)
+		)
+	elif screen_id == \"drawing_editor\":
+		_add_tool_btn(\"Pencil\", _on_btn_pencil_pressed)
+		_add_tool_btn(\"Pen\", func():
+			canvas_view.input_handler.controller.is_eraser_active = false
+			editor_ctrl.toolbar.select_tool(1)
+			_refresh_status(\"Tool: Pen\")
+		)
+		_add_tool_btn(\"Marker\", _on_btn_marker_pressed)
+		_add_tool_btn(\"Soft Brush\", func():
+			canvas_view.input_handler.controller.is_eraser_active = false
+			editor_ctrl.toolbar.select_tool(3)
+			_refresh_status(\"Tool: Soft Brush\")
+		)
+		_add_tool_btn(\"Eraser\", _on_btn_eraser_pressed)
+		_add_tool_btn(\"Gold #F59E0B\", func(): editor_ctrl.set_brush_color(\"#F59E0B\"))
+		_add_tool_btn(\"Blue #3B82F6\", func(): editor_ctrl.set_brush_color(\"#3B82F6\"))
+		_add_tool_btn(\"Green #10B981\", func(): editor_ctrl.set_brush_color(\"#10B981\"))
+		_add_tool_btn(\"Pink #EC4899\", func(): editor_ctrl.set_brush_color(\"#EC4899\"))
+		_add_tool_btn(\"+ Layer\", func():
+			var lid := editor_ctrl.layers.add_layer(\"Layer\")
+			_refresh_status(\"Added Layer #%d\" % lid)
+		)
+		_add_tool_btn(\"Undo\", func():
+			UndoManager.perform_undo()
+			canvas_view.refresh_canvas()
+			_refresh_status(\"Undo applied\")
+		)
+		_add_tool_btn(\"Redo\", func():
+			UndoManager.perform_redo()
+			canvas_view.refresh_canvas()
+			_refresh_status(\"Redo applied\")
+		)
+		_add_tool_btn(\"Clear\", func():
+			AppState.drawing_bridge.clear_canvas()
+			canvas_view.refresh_canvas()
+			_refresh_status(\"Canvas cleared\")
+		)
+	elif screen_id == \"rig_editor\":
+		_add_tool_btn(\"Draw Sample Stickman\", func():
+			if AppState.drawing_bridge.get_stroke_count() == 0:
+				AppState.drawing_bridge.load_sample_stickman()
+			canvas_view.refresh_canvas()
+			_on_stroke_committed(0)
+		)
+		_add_tool_btn(\"Auto-Rig Original Stickman (11 Joints / 10 Bones)\", _on_btn_auto_rig_pressed)
+		_add_tool_btn(\"Toggle Rig Overlay\", func():
+			canvas_view.renderer.show_rig_overlay = not canvas_view.renderer.show_rig_overlay
+			canvas_view.refresh_canvas()
+		)
+	elif screen_id == \"animation_studio\":
+		for clip in [\"idle\", \"walk\", \"run\", \"jump\", \"fall\", \"fly\", \"swim\"]:
+			var clip_name: String = clip
+			_add_tool_btn(\"Play '\" + clip_name + \"'\", func():
+				if AppState.active_stickman_rig_id <= 0:
+					_on_btn_auto_rig_pressed()
+				anim_ctrl.play(clip_name)
+				_refresh_status(\"Playing preset '\" + clip_name + \"' on original drawing\")
+			)
+		_add_tool_btn(\"Pause\", func(): anim_ctrl.pause())
+		_add_tool_btn(\"Stop\", func(): anim_ctrl.stop())
+	elif screen_id == \"living_world\":
+		_add_tool_btn(\"Play / Pause World Physics\", func():
+			world_ctrl.is_simulating = not world_ctrl.is_simulating
+			_refresh_status(\"World Physics Simulation: \" + (\"RUNNING\" if world_ctrl.is_simulating else \"PAUSED\"))
+		)
+		_add_tool_btn(\"Stickman Enter / Drive Drawn Car\", _on_btn_drive_car_pressed)
+		_add_tool_btn(\"Reset World Positions\", func():
+			world_ctrl.is_simulating = false
+			AppState.physics_bridge.set_environment(980.0, 620.0, 520.0, 20.0)
+			canvas_view.refresh_canvas()
+			_refresh_status(\"World reset\")
+		)
+	elif screen_id == \"settings\":
+		_add_tool_btn(\"Backup SQLite DB\", func():
+			var ok := DatabaseManager.sqlite_manager.create_backup()
+			_refresh_status(\"SQLite Online Backup: \" + (\"SUCCESS\" if ok else \"FAILED\"))
+		)
+		_add_tool_btn(\"Export Editable Project JSON\", func():
+			var ok := export_ctrl.export_project_bundle()
+			_refresh_status(\"Exported Editable JSON Bundle: \" + str(ok))
+		)
+		_add_tool_btn(\"Export Canvas PNG\", func():
+			var ok := export_ctrl.export_canvas_png(get_viewport())
+			_refresh_status(\"Exported Canvas PNG to user://exports/images/: \" + str(ok))
+		)
+
+func _add_tool_btn(label_text: String, callback: Callable) -> void:
+	var btn := Button.new()
+	btn.text = label_text
+	btn.pressed.connect(callback)
+	sub_toolbar.add_child(btn)
+
+func _on_stroke_committed(_stroke_id: int) -> void:
+	var res_json := AppState.recognition_bridge.classify_drawing(AppState.drawing_bridge)
+	var parsed = JSON.parse_string(res_json)
+	var cat := str(parsed.get(\"category\", \"other\")) if typeof(parsed) == TYPE_DICTIONARY else \"other\"
+	var conf := float(parsed.get(\"confidence\", 0.0)) if typeof(parsed) == TYPE_DICTIONARY else 0.0
+	_refresh_status(\"Preserved Original Strokes: %d | Offline Recognition: %s (%.0f%%)\" % [
+		AppState.drawing_bridge.get_stroke_count(), cat, conf * 100.0
+	])
+	inspect_label.text = \"Classified: %s\\nConfidence: %.2f\\nOriginal Strokes: %d\\nActive Rig ID: %d\\nDriving Car: %s\" % [
+		cat, conf, AppState.drawing_bridge.get_stroke_count(), AppState.active_stickman_rig_id, str(AppState.stickman_in_car)
+	]
+
+func _refresh_status(msg: String) -> void:
+	if status_label != null:
+		status_label.text = msg
+
+func _on_btn_pencil_pressed() -> void:
+	canvas_view.input_handler.controller.is_eraser_active = false
+	editor_ctrl.toolbar.select_tool(0)
+	_refresh_status(\"Tool: Pencil (Original Stroke Preservation Mode)\")
+
+func _on_btn_marker_pressed() -> void:
+	canvas_view.input_handler.controller.is_eraser_active = false
+	editor_ctrl.toolbar.select_tool(2)
+	_refresh_status(\"Tool: Marker\")
+
+func _on_btn_eraser_pressed() -> void:
+	canvas_view.input_handler.controller.is_eraser_active = true
+	editor_ctrl.toolbar.select_tool(4)
+	_refresh_status(\"Tool: Eraser\")
+
+func _on_btn_auto_rig_pressed() -> void:
+	if AppState.drawing_bridge.get_stroke_count() == 0:
+		AppState.drawing_bridge.load_sample_stickman()
+	var rig_id := rig_ctrl.auto_rig_stickman(AppState.active_stickman_object_id, Rect2(360, 160, 220, 360))
+	canvas_view.refresh_canvas()
+	_on_stroke_committed(0)
+	_refresh_status(\"Auto-Rigged Original Stickman Artwork (Rig ID #%d, 11 Joints, 10 Bones)\" % rig_id)
+
+func _on_btn_walk_pressed() -> void:
+	if AppState.active_stickman_rig_id <= 0:
+		_on_btn_auto_rig_pressed()
+	anim_ctrl.play(\"walk\")
+	canvas_view.refresh_canvas()
+	_refresh_status(\"Playing 'walk' cycle on User's Original Rigged Stickman\")
+
+func _on_btn_drive_car_pressed() -> void:
+	if AppState.drawing_bridge.get_stroke_count() < 2:
+		AppState.drawing_bridge.load_sample_stickman()
+		AppState.drawing_bridge.load_sample_car()
+	var mounted := world_ctrl.toggle_stickman_in_car()
+	world_ctrl.is_simulating = mounted
+	_on_stroke_committed(0)
+	_refresh_status(\"Stickman Mounted & Driving Drawn Car!\" if mounted else \"Stickman Exited Drawn Car\")
+
+func _on_btn_save_pressed() -> void:
+	var ok := ProjectManager.save_current_project()
+	_refresh_status(\"Project & Editable Strokes Saved to SQLite (ok=%s)\" % str(ok))
+
+func _on_tab_welcome() -> void: _switch_screen(\"welcome\")
+func _on_tab_profile() -> void: _switch_screen(\"profile_setup\")
+func _on_tab_home() -> void: _switch_screen(\"home\")
+func _on_tab_editor() -> void: _switch_screen(\"drawing_editor\")
+func _on_tab_rig() -> void: _switch_screen(\"rig_editor\")
+func _on_tab_anim() -> void: _switch_screen(\"animation_studio\")
+func _on_tab_world() -> void: _switch_screen(\"living_world\")
+func _on_tab_settings() -> void: _switch_screen(\"settings\")
+"
+
+[node name="MainStudio" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = SubResource("GDScript_main")
+
+[node name="StudioBackground" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.0705882, 0.0823529, 0.117647, 1)
+
+[node name="RootVBox" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="ScreenTabsBar" type="HBoxContainer" parent="RootVBox"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+
+[node name="Tab1Welcome" type="Button" parent="RootVBox/ScreenTabsBar"]
+layout_mode = 2
+text = "1. Welcome"
+
+[node name="Tab2Profile" type="Button" parent="RootVBox/ScreenTabsBar"]
+layout_mode = 2
+text = "2. Profile"
+
+[node name="Tab3Home" type="Button" parent="RootVBox/ScreenTabsBar"]
+layout_mode = 2
+text = "3. Home"
+
+[node name="Tab4Editor" type="Button" parent="RootVBox/ScreenTabsBar"]
+layout_mode = 2
+text = "4. Drawing Editor"
+
+[node name="Tab5Rig" type="Button" parent="RootVBox/ScreenTabsBar"]
+layout_mode = 2
+text = "5. Rig Editor"
+
+[node name="Tab6Anim" type="Button" parent="RootVBox/ScreenTabsBar"]
+layout_mode = 2
+text = "6. Animation Studio"
+
+[node name="Tab7World" type="Button" parent="RootVBox/ScreenTabsBar"]
+layout_mode = 2
+text = "7. Living World"
+
+[node name="Tab8Settings" type="Button" parent="RootVBox/ScreenTabsBar"]
+layout_mode = 2
+text = "8. Settings"
+
+[node name="ActiveScreenBadge" type="Label" parent="RootVBox/ScreenTabsBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Screen: DRAWING_EDITOR"
+horizontal_alignment = 2
+
+[node name="HeaderBar" type="HBoxContainer" parent="RootVBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+
+[node name="BrandTitle" type="Label" parent="RootVBox/HeaderBar"]
+layout_mode = 2
+text = "  LIVING CANVAS (Draw City)  |  "
+
+[node name="BtnPencil" type="Button" parent="RootVBox/HeaderBar"]
+layout_mode = 2
+text = "Pencil"
+
+[node name="BtnMarker" type="Button" parent="RootVBox/HeaderBar"]
+layout_mode = 2
+text = "Marker"
+
+[node name="BtnEraser" type="Button" parent="RootVBox/HeaderBar"]
+layout_mode = 2
+text = "Eraser"
+
+[node name="BtnAutoRig" type="Button" parent="RootVBox/HeaderBar"]
+layout_mode = 2
+text = "Rig Stickman"
+
+[node name="BtnWalk" type="Button" parent="RootVBox/HeaderBar"]
+layout_mode = 2
+text = "Animate Walk"
+
+[node name="BtnDriveCar" type="Button" parent="RootVBox/HeaderBar"]
+layout_mode = 2
+text = "Enter & Drive Car"
+
+[node name="BtnSave" type="Button" parent="RootVBox/HeaderBar"]
+layout_mode = 2
+text = "Save to SQLite"
+
+[node name="StatusLabel" type="Label" parent="RootVBox/HeaderBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Initializing..."
+horizontal_alignment = 2
+
+[node name="SubToolbar" type="HBoxContainer" parent="RootVBox"]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+
+[node name="WorkspaceSplit" type="HSplitContainer" parent="RootVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+split_offset = 1480
+
+[node name="CanvasContainer" type="Panel" parent="RootVBox/WorkspaceSplit"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DrawingCanvas" parent="RootVBox/WorkspaceSplit/CanvasContainer" instance=ExtResource("1")]
+layout_mode = 1
+
+[node name="SidePanel" type="VBoxContainer" parent="RootVBox/WorkspaceSplit"]
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+
+[node name="SideHeader" type="Label" parent="RootVBox/WorkspaceSplit/SidePanel"]
+layout_mode = 2
+text = "Object & Rig Inspector"
+
+[node name="InspectorText" type="Label" parent="RootVBox/WorkspaceSplit/SidePanel"]
+layout_mode = 2
+text = "Draw on the canvas with finger or stylus. Original strokes are preserved."
+autowrap_mode = 2
+
+[connection signal="pressed" from="RootVBox/ScreenTabsBar/Tab1Welcome" to="." method="_on_tab_welcome"]
+[connection signal="pressed" from="RootVBox/ScreenTabsBar/Tab2Profile" to="." method="_on_tab_profile"]
+[connection signal="pressed" from="RootVBox/ScreenTabsBar/Tab3Home" to="." method="_on_tab_home"]
+[connection signal="pressed" from="RootVBox/ScreenTabsBar/Tab4Editor" to="." method="_on_tab_editor"]
+[connection signal="pressed" from="RootVBox/ScreenTabsBar/Tab5Rig" to="." method="_on_tab_rig"]
+[connection signal="pressed" from="RootVBox/ScreenTabsBar/Tab6Anim" to="." method="_on_tab_anim"]
+[connection signal="pressed" from="RootVBox/ScreenTabsBar/Tab7World" to="." method="_on_tab_world"]
+[connection signal="pressed" from="RootVBox/ScreenTabsBar/Tab8Settings" to="." method="_on_tab_settings"]
+[connection signal="pressed" from="RootVBox/HeaderBar/BtnPencil" to="." method="_on_btn_pencil_pressed"]
+[connection signal="pressed" from="RootVBox/HeaderBar/BtnMarker" to="." method="_on_btn_marker_pressed"]
+[connection signal="pressed" from="RootVBox/HeaderBar/BtnEraser" to="." method="_on_btn_eraser_pressed"]
+[connection signal="pressed" from="RootVBox/HeaderBar/BtnAutoRig" to="." method="_on_btn_auto_rig_pressed"]
+[connection signal="pressed" from="RootVBox/HeaderBar/BtnWalk" to="." method="_on_btn_walk_pressed"]
+[connection signal="pressed" from="RootVBox/HeaderBar/BtnDriveCar" to="." method="_on_btn_drive_car_pressed"]
+[connection signal="pressed" from="RootVBox/HeaderBar/BtnSave" to="." method="_on_btn_save_pressed"]

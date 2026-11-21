@@ -1,0 +1,33 @@
+# Godot 4 generated files
+.godot/
+.import/
+export.cfg
+export_credentials.cfg
+
+# CMake & C++ Build outputs
+build/
+cmake-build-*/
+.cache/
+compile_commands.json
+godot_extension/bin/
+
+# Android build outputs
+*.apk
+*.aab
+*.idsig
+android/
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Runtime SQLite database files in workspace tests
+*.db
+*.db-shm
+*.db-wal
+

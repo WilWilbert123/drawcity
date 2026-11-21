@@ -1,0 +1,15 @@
+{
+  "rig_id": 1,
+  "object_id": 1,
+  "rig_type": "stickman",
+  "joints": [
+    {"id": 1, "name": "Pelvis", "x": 500.0, "y": 360.0},
+    {"id": 2, "name": "Neck", "x": 500.0, "y": 250.0},
+    {"id": 3, "name": "HeadTop", "x": 500.0, "y": 210.0}
+  ],
+  "bones": [
+    {"id": 1, "name": "Body", "parent_bone_id": 0, "start_joint_id": 1, "end_joint_id": 2},
+    {"id": 2, "name": "Head", "parent_bone_id": 1, "start_joint_id": 2, "end_joint_id": 3}
+  ]
+}
+

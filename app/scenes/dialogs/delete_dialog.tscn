@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[node name="DeleteDialog" type="ConfirmationDialog"]
+title = "Delete Project"
+dialog_text = "Are you sure you want to delete this project?"
+

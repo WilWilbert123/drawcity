@@ -1,0 +1,20 @@
+{
+  "default_fps": 24,
+  "default_duration_seconds": 2.0,
+  "default_loop": true,
+  "interpolation_mode": "cubic",
+  "ik_max_iterations": 16,
+  "ik_tolerance": 0.5,
+  "supported_clips": [
+    "idle",
+    "walk",
+    "run",
+    "jump",
+    "fall",
+    "fly",
+    "swim",
+    "attack",
+    "death"
+  ]
+}
+

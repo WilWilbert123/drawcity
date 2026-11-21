@@ -1,0 +1,6 @@
+{
+  "textures": [
+    {"id": "dark_canvas_bg", "color": "#181B24", "grid_size": 32}
+  ]
+}
+

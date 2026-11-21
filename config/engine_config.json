@@ -1,0 +1,11 @@
+{
+  "engine_version": "1.0.0",
+  "cpp_standard": "C++17",
+  "worker_threads": 2,
+  "enable_event_logging": true,
+  "enable_stroke_cache": true,
+  "max_cached_layers": 16,
+  "fixed_physics_hz": 60,
+  "memory_limit_mb": 512
+}
+
